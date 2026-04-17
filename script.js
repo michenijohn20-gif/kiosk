@@ -1,5 +1,6 @@
 const supabaseUrl = "https://sgysjdrbsdniaxztbury.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNneXNqZHJic2RuaWF4enRidXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzYxMzMsImV4cCI6MjA5MjAxMjEzM30.7RygricljOX-i9AkgOGpAqSBZNjuPjhGx5NpXJXh9Qo";
+const supabaseKey =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNneXNqZHJic2RuaWF4enRidXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzYxMzMsImV4cCI6MjA5MjAxMjEzM30.7RygricljOX-i9AkgOGpAqSBZNjuPjhGx5NpXJXh9Qo";
 
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
@@ -9,7 +10,7 @@ let salesChart = null;
 
 let selectedQty = 1;
 
-// FETCH PRODUCTS
+// ================= FETCH PRODUCTS =================
 async function fetchData() {
   const { data, error } = await _supabase.from("products").select("*");
 
@@ -19,100 +20,87 @@ async function fetchData() {
   renderCards(allProducts);
 }
 
-// SEARCH
+// ================= SEARCH =================
 let searchTimeout;
 
 function handleSearch() {
   clearTimeout(searchTimeout);
 
   searchTimeout = setTimeout(() => {
-    const query = document
-      .getElementById("searchInput")
-      .value.toLowerCase()
-      .trim();
+    const q = document.getElementById("searchInput").value.toLowerCase().trim();
 
     const filtered = allProducts.filter((p) =>
-      p.name.toLowerCase().includes(query)
+      p.name.toLowerCase().includes(q),
     );
 
     renderCards(filtered);
   }, 150);
 }
 
-// RENDER PRODUCTS (WITH CATEGORY + QTY PICKER)
+// ================= RENDER PRODUCTS =================
 function renderCards(products) {
   const grid = document.getElementById("inventory-grid");
   const loading = document.getElementById("loading-state");
   if (loading) loading.remove();
 
-  // group by category
   const grouped = {};
+
   products.forEach((p) => {
     if (!grouped[p.category]) grouped[p.category] = [];
     grouped[p.category].push(p);
   });
 
   grid.innerHTML = Object.keys(grouped)
-    .map((cat) => {
-      return `
-      <div class="col-12 mt-3">
-        <h5 class="text-primary">${cat}</h5>
-      </div>
+    .map(
+      (cat) => `
+    <div class="col-12 mt-3">
+      <h5 class="text-primary">${cat}</h5>
+    </div>
 
-      ${grouped[cat]
-        .map(
-          (product) => `
-        <div class="col-6">
-          <div class="card shadow-sm border-0">
-            <div class="card-body text-center">
+    ${grouped[cat]
+      .map(
+        (product) => `
+      <div class="col-6">
+        <div class="card shadow-sm">
+          <div class="card-body text-center">
 
-              <h6>${product.name}</h6>
-              <small class="text-muted">${product.category}</small>
+            <h6>${product.name}</h6>
+            <small class="text-muted">${product.category}</small>
 
-              <p class="fw-bold text-primary mt-2">${product.price} KES</p>
+            <p class="fw-bold text-primary">${product.price} KES</p>
 
-              <!-- QTY SELECTOR -->
-              <div class="d-flex justify-content-center align-items-center gap-2 mb-2">
-                <button class="btn btn-sm btn-outline-secondary"
-                  onclick="changeQty(-1)">-</button>
-
-                <span id="qtyDisplay">${selectedQty}</span>
-
-                <button class="btn btn-sm btn-outline-secondary"
-                  onclick="changeQty(1)">+</button>
-              </div>
-
-              <button class="btn btn-sm btn-primary w-100"
-                onclick='addToCart(${JSON.stringify(product)})'>
-                Add
-              </button>
-
+            <div class="d-flex justify-content-center gap-2 mb-2">
+              <button onclick="changeQty(-1)" class="btn btn-sm btn-outline-secondary">-</button>
+              <span>${selectedQty}</span>
+              <button onclick="changeQty(1)" class="btn btn-sm btn-outline-secondary">+</button>
             </div>
+
+            <button class="btn btn-primary btn-sm w-100"
+              onclick='addToCart(${JSON.stringify(product)})'>
+              Add
+            </button>
+
           </div>
         </div>
-      `
-        )
-        .join("")}
-    `;
-    })
+      </div>
+    `,
+      )
+      .join("")}
+  `,
+    )
     .join("");
 
   document.getElementById("total-items-count").innerText =
     `${products.length} Products`;
 }
 
-// CHANGE QTY BEFORE ADDING
-function changeQty(value) {
-  selectedQty += value;
-
+// ================= QTY =================
+function changeQty(val) {
+  selectedQty += val;
   if (selectedQty < 1) selectedQty = 1;
-
-  document.querySelectorAll("#qtyDisplay").forEach((el) => {
-    el.innerText = selectedQty;
-  });
 }
 
-// ADD TO CART
+// ================= ADD TO CART =================
 function addToCart(product) {
   const id = String(product.id);
 
@@ -128,14 +116,14 @@ function addToCart(product) {
   updateCartUI();
 }
 
-// REMOVE FROM CART
+// ================= REMOVE =================
 function removeFromCart(id) {
   id = String(id);
 
   const item = cart.find((p) => String(p.id) === id);
   if (!item) return;
 
-  item.qty -= 1;
+  item.qty--;
 
   if (item.qty <= 0) {
     cart = cart.filter((p) => String(p.id) !== id);
@@ -144,7 +132,7 @@ function removeFromCart(id) {
   updateCartUI();
 }
 
-// CART UI
+// ================= CART UI =================
 function updateCartUI() {
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const count = cart.reduce((s, i) => s + i.qty, 0);
@@ -152,13 +140,12 @@ function updateCartUI() {
   document.getElementById("cart-total-price").innerText =
     total.toLocaleString();
 
-  document.getElementById("cart-summary").innerText =
-    `${count} item(s)`;
+  document.getElementById("cart-summary").innerText = `${count} items`;
 
   renderCartItems();
 }
 
-// CART RENDER
+// ================= CART RENDER =================
 function renderCartItems() {
   const list = document.getElementById("cart-list");
 
@@ -171,8 +158,9 @@ function renderCartItems() {
     .map(
       (item) => `
     <li class="list-group-item d-flex justify-content-between align-items-center">
+
       <div>
-        <strong>${item.name}</strong><br>
+        <b>${item.name}</b><br>
         <small>${item.price} x ${item.qty}</small>
       </div>
 
@@ -181,25 +169,24 @@ function renderCartItems() {
         <button class="btn btn-sm btn-danger ms-2"
           onclick="removeFromCart('${item.id}')">−</button>
       </div>
+
     </li>
-  `
+  `,
     )
     .join("");
 }
 
-// CLEAR
+// ================= CLEAR =================
 function clearCart() {
   cart = [];
   updateCartUI();
 }
 
-// CHECKOUT
+// ================= CHECKOUT =================
 async function checkout() {
   if (cart.length === 0) return;
 
-  const payment = document.querySelector(
-    'input[name="payment"]:checked'
-  ).value;
+  const payment = document.querySelector('input[name="payment"]:checked').value;
 
   const totalItems = cart.reduce((s, i) => s + i.qty, 0);
 
@@ -225,8 +212,68 @@ async function checkout() {
   fetchData();
 }
 
-// INIT
+// ================= SUMMARY (NEW & IMPROVED) =================
+async function showSummary() {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const { data: sales, error } = await _supabase
+      .from("sales")
+      .select("*")
+      .gte("created_at", today.toISOString());
+
+    if (error) throw error;
+
+    const safeSales = sales || [];
+
+    let cash = 0;
+    let mpesa = 0;
+    let total = 0;
+
+    safeSales.forEach((s) => {
+      const amt = Number(s.amount_paid || 0);
+      total += amt;
+
+      if (s.payment_method === "Cash") cash += amt;
+      if (s.payment_method === "M-Pesa") mpesa += amt;
+    });
+
+    document.getElementById("stat-cash").innerText = cash.toLocaleString();
+    document.getElementById("stat-mpesa").innerText = mpesa.toLocaleString();
+    document.getElementById("stat-total").innerText = total.toLocaleString();
+    document.getElementById("stat-count").innerText =
+      `${safeSales.length} sales`;
+
+    const { data: lowStock } = await _supabase
+      .from("products")
+      .select("*")
+      .lt("stock", 5);
+
+    const list = document.getElementById("low-stock-list");
+
+    list.innerHTML = (lowStock || []).length
+      ? lowStock
+          .map(
+            (p) => `
+          <li class="list-group-item d-flex justify-content-between">
+            ${p.name}
+            <span class="badge bg-danger">${p.stock}</span>
+          </li>
+        `,
+          )
+          .join("")
+      : `<li class="list-group-item">All stock OK</li>`;
+
+    // SHOW MODAL
+    const modal = new bootstrap.Modal(document.getElementById("summaryModal"));
+    modal.show();
+  } catch (err) {
+    console.error("SUMMARY ERROR DETAILS:", err);
+    alert("Failed to load summary: " + (err.message || JSON.stringify(err)));
+  }
+}
+
+// ================= INIT =================
 fetchData();
 updateCartUI();
-
-// SALES CHART 
