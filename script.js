@@ -1,5 +1,6 @@
 const supabaseUrl = "https://sgysjdrbsdniaxztbury.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNneXNqZHJic2RuaWF4enRidXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzYxMzMsImV4cCI6MjA5MjAxMjEzM30.7RygricljOX-i9AkgOGpAqSBZNjuPjhGx5NpXJXh9Qo";
+const supabaseKey =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNneXNqZHJic2RuaWF4enRidXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzYxMzMsImV4cCI6MjA5MjAxMjEzM30.7RygricljOX-i9AkgOGpAqSBZNjuPjhGx5NpXJXh9Qo";
 
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
@@ -68,12 +69,14 @@ function renderCards(products) {
 
 // ADD TO CART (with qty)
 function addToCart(product) {
-  const existing = cart.find((item) => item.id === product.id);
+  const id = String(product.id);
+
+  const existing = cart.find((item) => String(item.id) === id);
 
   if (existing) {
     existing.qty += 1;
   } else {
-    cart.push({ ...product, qty: 1 });
+    cart.push({ ...product, id, qty: 1 });
   }
 
   updateCartUI();
@@ -81,13 +84,18 @@ function addToCart(product) {
 
 // REMOVE FROM CART (qty-based)
 function removeFromCart(id) {
-  const item = cart.find((p) => p.id === id);
-  if (!item) return;
+  id = String(id);
+
+  const item = cart.find((p) => String(p.id) === id);
+  if (!item) {
+    console.log("Item not found in cart:", id);
+    return;
+  }
 
   item.qty -= 1;
 
   if (item.qty <= 0) {
-    cart = cart.filter((p) => p.id !== id);
+    cart = cart.filter((p) => String(p.id) !== id);
   }
 
   updateCartUI();
@@ -131,7 +139,7 @@ function renderCartItems() {
         </span>
 
         <button class="btn btn-sm btn-danger"
-          onclick="removeFromCart(${item.id})">−</button>
+          onclick="removeFromCart('${item.id}')">−</button>
       </div>
     </li>
   `,
