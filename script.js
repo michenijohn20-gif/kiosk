@@ -1,6 +1,6 @@
 const supabaseUrl = "https://sgysjdrbsdniaxztbury.supabase.co";
-const supabaseKey =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNneXNqZHJic2RuaWF4enRidXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzYxMzMsImV4cCI6MjA5MjAxMjEzM30.7RygricljOX-i9AkgOGpAqSBZNjuPjhGx5NpXJXh9Qo";
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNneXNqZHJic2RuaWF4enRidXJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0MzYxMzMsImV4cCI6MjA5MjAxMjEzM30.7RygricljOX-i9AkgOGpAqSBZNjuPjhGx5NpXJXh9Qo";
+
 const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
 let cart = [];
@@ -13,9 +13,11 @@ async function fetchData() {
 
   if (error) return console.error(error);
 
-  allProducts = data; // store globally
+  allProducts = data;
   renderCards(allProducts);
 }
+
+// SEARCH
 let searchTimeout;
 
 function handleSearch() {
@@ -64,20 +66,77 @@ function renderCards(products) {
     `${products.length} Products`;
 }
 
-// ADD TO CART
+// ADD TO CART (with qty)
 function addToCart(product) {
-  cart.push(product);
+  const existing = cart.find((item) => item.id === product.id);
+
+  if (existing) {
+    existing.qty += 1;
+  } else {
+    cart.push({ ...product, qty: 1 });
+  }
+
+  updateCartUI();
+}
+
+// REMOVE FROM CART (qty-based)
+function removeFromCart(id) {
+  const item = cart.find((p) => p.id === id);
+  if (!item) return;
+
+  item.qty -= 1;
+
+  if (item.qty <= 0) {
+    cart = cart.filter((p) => p.id !== id);
+  }
+
   updateCartUI();
 }
 
 // UPDATE CART UI
 function updateCartUI() {
-  const total = cart.reduce((sum, item) => sum + parseFloat(item.price), 0);
+  const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
 
   document.getElementById("cart-total-price").innerText =
     total.toLocaleString();
 
-  document.getElementById("cart-summary").innerText = `${cart.length} item(s)`;
+  const count = cart.reduce((sum, item) => sum + item.qty, 0);
+
+  document.getElementById("cart-summary").innerText = `${count} item(s)`;
+
+  renderCartItems();
+}
+
+// CART RENDER
+function renderCartItems() {
+  const list = document.getElementById("cart-list");
+
+  if (cart.length === 0) {
+    list.innerHTML = "";
+    return;
+  }
+
+  list.innerHTML = cart
+    .map(
+      (item) => `
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <div>
+        <strong>${item.name}</strong><br>
+        <small>${item.price} x ${item.qty}</small>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        <span class="fw-bold">
+          ${item.price * item.qty} KES
+        </span>
+
+        <button class="btn btn-sm btn-danger"
+          onclick="removeFromCart(${item.id})">−</button>
+      </div>
+    </li>
+  `,
+    )
+    .join("");
 }
 
 // CLEAR CART
@@ -94,18 +153,20 @@ async function checkout() {
     'input[name="payment"]:checked',
   ).value;
 
-  if (!confirm(`Sell ${cart.length} items via ${paymentMethod}?`)) return;
+  const totalItems = cart.reduce((sum, item) => sum + item.qty, 0);
+
+  if (!confirm(`Sell ${totalItems} items via ${paymentMethod}?`)) return;
 
   for (const item of cart) {
     await _supabase
       .from("products")
-      .update({ stock: item.stock - 1 })
+      .update({ stock: item.stock - item.qty })
       .eq("id", item.id);
 
     await _supabase.from("sales").insert([
       {
         product_id: item.id,
-        amount_paid: item.price,
+        amount_paid: item.price * item.qty,
         payment_method: paymentMethod,
       },
     ]);
@@ -132,10 +193,10 @@ async function showSummary() {
     .lt("stock", 5);
 
   if (salesError || prodError) {
-    console.error(salesError || prodError);
     alert("Error loading summary");
     return;
   }
+
   renderChart(sales);
 
   let cash = 0;
@@ -156,6 +217,7 @@ async function showSummary() {
   document.getElementById("stat-count").innerText = `${sales.length} sale(s)`;
 
   const list = document.getElementById("low-stock-list");
+
   list.innerHTML = products.length
     ? products
         .map(
@@ -171,8 +233,9 @@ async function showSummary() {
 
   new bootstrap.Modal(document.getElementById("summaryModal")).show();
 }
+
+// CHART
 function renderChart(sales) {
-  // Group sales by date
   const dailyTotals = {};
 
   sales.forEach((sale) => {
@@ -187,19 +250,16 @@ function renderChart(sales) {
 
   const ctx = document.getElementById("salesChart");
 
-  // Destroy old chart if it exists
-  if (salesChart) {
-    salesChart.destroy();
-  }
+  if (salesChart) salesChart.destroy();
 
   salesChart = new Chart(ctx, {
     type: "bar",
     data: {
-      labels: labels,
+      labels,
       datasets: [
         {
           label: "KES Earned",
-          data: data,
+          data,
         },
       ],
     },

@@ -6,21 +6,29 @@
     <title>Mini-Mart POS</title>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
       rel="stylesheet"
     />
+    <style>
+      body {
+        padding-bottom: 180px; /* space for fixed cart bar */
+      }
+    </style>
   </head>
 
   <body class="bg-light">
-    <!-- NAVBAR -->
+    <!-- NAV -->
     <nav class="navbar navbar-dark bg-dark sticky-top">
       <div class="container-fluid">
         <span class="navbar-brand fw-bold">🛒 Ruiru Mini-Mart</span>
+
         <div>
-          <span class="badge bg-primary me-2" id="total-items-count"
-            >0 Products</span
-          >
+          <span class="badge bg-primary me-2" id="total-items-count">
+            0 Products
+          </span>
           <button class="btn btn-sm btn-outline-light" onclick="showSummary()">
             📊 Summary
           </button>
@@ -28,6 +36,7 @@
       </div>
     </nav>
 
+    <!-- SEARCH -->
     <div class="container mt-3">
       <input
         type="text"
@@ -37,6 +46,7 @@
         oninput="handleSearch()"
       />
     </div>
+
     <!-- PRODUCTS -->
     <div class="container mt-4 mb-5">
       <div class="row g-3" id="inventory-grid">
@@ -48,15 +58,22 @@
     </div>
 
     <!-- CART -->
+    <div class="container mb-5">
+      <h6 class="mb-2">Cart Items</h6>
+      <ul class="list-group" id="cart-list"></ul>
+    </div>
+
+    <!-- BOTTOM BAR -->
     <div class="fixed-bottom bg-white border-top p-3 shadow">
       <div class="container">
-        <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="d-flex justify-content-between mb-2">
           <div>
             <h6 class="mb-0">
               Total: <span id="cart-total-price">0</span> KES
             </h6>
-            <small class="text-muted" id="cart-summary">0 items</small>
+            <small id="cart-summary">0 items</small>
           </div>
+
           <button class="btn btn-sm btn-outline-danger" onclick="clearCart()">
             Clear
           </button>
@@ -71,7 +88,7 @@
             value="Cash"
             checked
           />
-          <label class="btn btn-outline-secondary" for="cash">Cash</label>
+          <label class="btn btn-outline-info" for="cash">Cash</label>
 
           <input
             type="radio"
@@ -105,30 +122,32 @@
             <div class="row mb-3">
               <div class="col-6">
                 <h4 id="stat-cash">0</h4>
-                <small class="text-muted">Cash</small>
+                <small>Cash</small>
               </div>
+
               <div class="col-6">
                 <h4 id="stat-mpesa">0</h4>
-                <small class="text-muted">M-Pesa</small>
+                <small>M-Pesa</small>
               </div>
             </div>
 
-            <hr />
-
-            <h4 class="fw-bold">Total: <span id="stat-total">0</span> KES</h4>
-            <small class="text-muted" id="stat-count">0 sales</small>
+            <h4>Total: <span id="stat-total">0</span> KES</h4>
+            <small id="stat-count">0 sales</small>
 
             <hr />
-            <h6 class="text-start">Daily Sales (Last 7 Days)</h6>
+
+            <h6 class="text-start">Sales Chart</h6>
             <canvas id="salesChart"></canvas>
 
+            <hr />
+
             <h6 class="text-start">Low Stock</h6>
-            <ul class="list-group text-start" id="low-stock-list"></ul>
+            <ul class="list-group" id="low-stock-list"></ul>
           </div>
         </div>
       </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script src="script.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   </body>
