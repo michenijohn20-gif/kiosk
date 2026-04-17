@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mini-Mart POS</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+  </head>
+
+  <body class="bg-light">
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-dark bg-dark sticky-top">
+      <div class="container-fluid">
+        <span class="navbar-brand fw-bold">🛒 Ruiru Mini-Mart</span>
+        <div>
+          <span class="badge bg-primary me-2" id="total-items-count"
+            >0 Products</span
+          >
+          <button class="btn btn-sm btn-outline-light" onclick="showSummary()">
+            📊 Summary
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container mt-3">
+      <input
+        type="text"
+        id="searchInput"
+        class="form-control"
+        placeholder="Search product..."
+        oninput="handleSearch()"
+      />
+    </div>
+    <!-- PRODUCTS -->
+    <div class="container mt-4 mb-5">
+      <div class="row g-3" id="inventory-grid">
+        <div class="col-12 text-center py-5" id="loading-state">
+          <div class="spinner-border text-primary"></div>
+          <p class="mt-2">Loading products...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CART -->
+    <div class="fixed-bottom bg-white border-top p-3 shadow">
+      <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <h6 class="mb-0">
+              Total: <span id="cart-total-price">0</span> KES
+            </h6>
+            <small class="text-muted" id="cart-summary">0 items</small>
+          </div>
+          <button class="btn btn-sm btn-outline-danger" onclick="clearCart()">
+            Clear
+          </button>
+        </div>
+
+        <div class="btn-group w-100 mb-2">
+          <input
+            type="radio"
+            class="btn-check"
+            name="payment"
+            id="cash"
+            value="Cash"
+            checked
+          />
+          <label class="btn btn-outline-secondary" for="cash">Cash</label>
+
+          <input
+            type="radio"
+            class="btn-check"
+            name="payment"
+            id="mpesa"
+            value="M-Pesa"
+          />
+          <label class="btn btn-outline-success" for="mpesa">M-Pesa</label>
+        </div>
+
+        <button class="btn btn-primary w-100" onclick="checkout()">
+          Complete Sale
+        </button>
+      </div>
+    </div>
+
+    <!-- SUMMARY MODAL -->
+    <div class="modal fade" id="summaryModal">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-dark text-white">
+            <h5 class="modal-title">Daily Summary</h5>
+            <button
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+
+          <div class="modal-body text-center">
+            <div class="row mb-3">
+              <div class="col-6">
+                <h4 id="stat-cash">0</h4>
+                <small class="text-muted">Cash</small>
+              </div>
+              <div class="col-6">
+                <h4 id="stat-mpesa">0</h4>
+                <small class="text-muted">M-Pesa</small>
+              </div>
+            </div>
+
+            <hr />
+
+            <h4 class="fw-bold">Total: <span id="stat-total">0</span> KES</h4>
+            <small class="text-muted" id="stat-count">0 sales</small>
+
+            <hr />
+            <h6 class="text-start">Daily Sales (Last 7 Days)</h6>
+            <canvas id="salesChart"></canvas>
+
+            <h6 class="text-start">Low Stock</h6>
+            <ul class="list-group text-start" id="low-stock-list"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>
