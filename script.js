@@ -290,15 +290,11 @@ async function getTopSellingItems() {
     return acc;
   }, {});
 
-  return Object.entries(counts)
-    .map(([id, count]) => {
-      const product = allProducts.find((p) => String(p.id) === String(id));
-      return {
-        name: product ? product.name : `Product ${id}`,
-        count: count,
-      };
-    })
-    .sort((a, b) => b.count - a.count);
+  // Map through ALL products to include items with 0 sales
+  return allProducts.map(p => ({
+    name: p.name,
+    count: counts[p.id] || 0
+  })).sort((a, b) => b.count - a.count);
 }
 
 // ================= SUMMARY (NEW & IMPROVED) =================
@@ -354,20 +350,6 @@ async function showSummary() {
           .join("")
       : `<li class="list-group-item">All stock OK</li>`;
 
-    // TOP SELLERS
-    const topItems = await getTopSellingItems();
-    const topList = document.getElementById("top-sellers-list");
-    if (topList) {
-      topList.innerHTML = topItems.length
-        ? topItems.slice(0, 5).map(item => `
-          <li class="list-group-item d-flex justify-content-between">
-            ${item.name}
-            <span class="badge bg-primary rounded-pill">${item.count} sold</span>
-          </li>
-        `).join("")
-        : `<li class="list-group-item">No sales data</li>`;
-    }
-
     // SHOW MODAL
     const modal = new bootstrap.Modal(document.getElementById("summaryModal"));
     modal.show();
@@ -375,6 +357,111 @@ async function showSummary() {
     console.error("SUMMARY ERROR DETAILS:", err);
     alert("Failed to load summary: " + (err.message || JSON.stringify(err)));
   }
+}
+
+// ================= DEEP ANALYSIS =================
+async function showDetailedSummary() {
+  try {
+    // Get last 30 days of data for better statistics
+    const monthAgo = new Date();
+    monthAgo.setDate(monthAgo.getDate() - 30);
+
+    const { data: sales, error } = await _supabase
+      .from("sales")
+      .select("*")
+      .gte("created_at", monthAgo.toISOString());
+
+    if (error) throw error;
+
+    const safeSales = sales || [];
+
+    // 1. Calculate Average Transaction Value (ATV)
+    const totalRevenue = safeSales.reduce((sum, s) => sum + Number(s.amount_paid), 0);
+    const avgSale = safeSales.length ? (totalRevenue / safeSales.length) : 0;
+    document.getElementById("det-avg-sale").innerText = Math.round(avgSale).toLocaleString() + " KES";
+
+    // 2. Calculate Peak Hour
+    const hours = safeSales.map(s => new Date(s.created_at).getHours());
+    const peakHour = hours.length ? hours.sort((a,b) =>
+          hours.filter(v => v===a).length - hours.filter(v => v===b).length
+    ).pop() : 0;
+    document.getElementById("det-peak-hour").innerText = `${peakHour}:00`;
+
+    // 3. Total Items Sold (Volume)
+    document.getElementById("det-total-qty").innerText = safeSales.length;
+
+    // 4. Rankings (Best & Worst)
+    const rankings = await getTopSellingItems();
+    
+    const topList = document.getElementById("top-sellers-list");
+    if (topList) {
+      const topItems = rankings.filter(i => i.count > 0).slice(0, 5);
+      topList.innerHTML = topItems.length
+        ? topItems.map(item => `
+          <li class="list-group-item d-flex justify-content-between py-1 px-2 border-0">
+            <small>${item.name}</small>
+            <span class="badge bg-success rounded-pill">${item.count}</span>
+          </li>
+        `).join("")
+        : `<li class="list-group-item text-muted border-0">No data</li>`;
+    }
+
+    const worstList = document.getElementById("worst-sellers-list");
+    if (worstList) {
+      const slowItems = [...rankings].reverse().slice(0, 5);
+      worstList.innerHTML = slowItems.map(item => `
+        <li class="list-group-item d-flex justify-content-between py-1 px-2 border-0">
+          <small>${item.name}</small>
+          <span class="badge bg-light text-dark border rounded-pill">${item.count}</span>
+        </li>
+      `).join("");
+    }
+
+    // 4. Trend Chart (Last 7 Days)
+    renderTrendChart(safeSales);
+
+    // Show Modal
+    const detailModal = new bootstrap.Modal(document.getElementById("detailedSummaryModal"));
+    detailModal.show();
+  } catch (err) {
+    console.error("DEEP SUMMARY ERROR:", err);
+    showNotification("Failed to load detailed report", "danger");
+  }
+}
+
+function renderTrendChart(salesData) {
+  const ctx = document.getElementById('salesTrendChart').getContext('2d');
+  
+  // Group sales by day
+  const last7Days = [...Array(7)].map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    return d.toISOString().split('T')[0];
+  }).reverse();
+
+  const dailyTotals = last7Days.map(date => {
+    return salesData
+      .filter(s => s.created_at.startsWith(date))
+      .reduce((sum, s) => sum + Number(s.amount_paid), 0);
+  });
+
+  if (salesChart) salesChart.destroy();
+
+  salesChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: last7Days.map(d => d.split('-').slice(1).join('/')), // MM/DD format
+      datasets: [{
+        label: 'Daily Revenue (KES)',
+        data: dailyTotals,
+        borderColor: '#0d6efd',
+        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+        fill: true,
+        tension: 0.4
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
 }
 
 // ================= INIT =================
