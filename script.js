@@ -982,5 +982,9 @@ fetchData();
 updateCartUI();
 initEventListeners();
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js') // The '/' ensures it looks in the root
+      .then(reg => console.log('Service Worker registered!', reg))
+      .catch(err => console.log('Service Worker registration failed:', err));
+  });
 }
