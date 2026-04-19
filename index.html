@@ -64,6 +64,31 @@
         transition: opacity 0.5s ease-out; /* Smooth fade out */
       }
 
+      #splash-screen.fade-out {
+        opacity: 0;
+      }
+
+      @keyframes cartBounceIn {
+        0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+        70% { transform: scale(1.2) rotate(10deg); }
+        100% { transform: scale(1) rotate(0); opacity: 1; }
+      }
+
+      @keyframes cartGlow {
+        0%, 100% { filter: drop-shadow(0 0 5px rgba(13, 110, 253, 0.2)); }
+        50% { filter: drop-shadow(0 0 20px rgba(13, 110, 253, 0.6)); }
+      }
+
+      .splash-logo-container {
+        width: 150px;
+        height: 150px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: cartBounceIn 1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+                   cartGlow 2s ease-in-out infinite;
+      }
+
       /* Custom Animations */
       @keyframes modalFadeDown {
         from {
@@ -100,8 +125,9 @@
   <body class="bg-body">
     <!-- SPLASH SCREEN -->
     <div id="splash-screen">
-      <div class="spinner-border text-primary" role="status">
-        <span class="visually-hidden">Loading...</span>
+      <div class="splash-logo-container">
+        <!-- You can replace the 🛒 emoji below with <img src="your-cart-icon.png" width="120"> -->
+        <span style="font-size: 6rem;">🛒</span>
       </div>
       <p class="mt-2 text-muted">Loading your shop...</p>
     </div>
