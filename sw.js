@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pos-upgrade-v2';
+const CACHE_NAME = 'pos-upgrade-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

@@ -11,14 +11,43 @@ let lastSale = null;
 let salesChart = null;
 
 // ================= FETCH PRODUCTS =================
+
+// Load from cache instantly — app is usable in under 1 second
+function loadFromCache() {
+  const cachedProducts = localStorage.getItem("allProducts");
+  const cachedCategories = localStorage.getItem("allCategories");
+  if (cachedProducts && cachedCategories) {
+    allProducts = JSON.parse(cachedProducts);
+    allCategories = JSON.parse(cachedCategories);
+    renderCategoryPills();
+    renderCards(allProducts);
+    return true;
+  }
+  return false;
+}
+
+// Race Supabase against a 6 second timeout — don't wait forever
+function fetchWithTimeout(promise, ms = 6000) {
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("timeout")), ms)
+  );
+  return Promise.race([promise, timeout]);
+}
+
 async function fetchData() {
   const loading = document.getElementById("loading-state");
 
+  // 1. Show cache IMMEDIATELY — no spinner, no waiting
+  const hadCache = loadFromCache();
+
+  // 2. Then sync fresh data from Supabase in the background
   try {
-    const [prodRes, catRes] = await Promise.all([
-      _supabase.from("products").select("*"),
-      _supabase.from("categories").select("*").order("name"),
-    ]);
+    const [prodRes, catRes] = await fetchWithTimeout(
+      Promise.all([
+        _supabase.from("products").select("*"),
+        _supabase.from("categories").select("*").order("name"),
+      ])
+    );
 
     if (prodRes.error) throw prodRes.error;
     if (catRes.error) throw catRes.error;
@@ -34,31 +63,21 @@ async function fetchData() {
     }));
     localStorage.setItem("allProducts", JSON.stringify(allProducts));
 
+    // Silently update UI with fresh server data
     renderCategoryPills();
     renderCards(allProducts);
+
   } catch (err) {
-    console.error("Supabase Fetch Error:", err);
-    if (loading) {
-      let helpText = "Ensure the 'products' table has a 'category_id' column.";
-      if (err.message && err.message.includes("schema cache")) {
-        helpText =
-          "Database schema mismatch. Try 'Reload PostgREST' in Supabase API settings.";
-      }
-
-      const cachedProducts = localStorage.getItem("allProducts");
-      const cachedCategories = localStorage.getItem("allCategories");
-
-      if (cachedProducts && cachedCategories) {
-        allProducts = JSON.parse(cachedProducts);
-        allCategories = JSON.parse(cachedCategories);
-        showNotification("Offline: Loaded products from cache.", "info");
-        renderCategoryPills();
-        renderCards(allProducts);
-      } else {
+    if (hadCache) {
+      // Cache already showing — quiet notification only
+      showNotification("Offline: Showing cached products.", "info");
+    } else {
+      // First ever launch with no internet
+      if (loading) {
         loading.innerHTML = `
-          <div class="alert alert-danger mx-auto" style="max-width: 400px;">
-            <strong>Load Failed:</strong> ${err.message}<br>
-            <small>${helpText}</small>
+          <div class="alert alert-warning mx-auto" style="max-width: 400px;">
+            <strong>No connection</strong><br>
+            <small>Open the app while online at least once to enable offline mode.</small>
           </div>`;
       }
     }
@@ -412,10 +431,7 @@ async function completeSale() {
   if (!navigator.onLine) {
     addToOfflineQueue({ items: [...cart], payment });
     applyStockLocally(cart);
-    showNotification(
-      "Offline: Sale saved and will sync when back online.",
-      "warning",
-    );
+    showNotification("Offline: Sale saved and will sync when back online.", "warning");
     finalizeSale();
     return;
   }
@@ -573,8 +589,7 @@ async function showDetailedSummary() {
     const safeSales = sales || [];
 
     const totalRevenue = safeSales.reduce(
-      (sum, s) => sum + Number(s.amount_paid || 0),
-      0,
+      (sum, s) => sum + Number(s.amount_paid || 0), 0,
     );
     const avgSale = safeSales.length ? totalRevenue / safeSales.length : 0;
     document.getElementById("det-avg-sale").innerText =
@@ -587,10 +602,7 @@ async function showDetailedSummary() {
     }, {});
     let peakHour = 0, maxCount = -1;
     for (const hr in hourCounts) {
-      if (hourCounts[hr] > maxCount) {
-        peakHour = hr;
-        maxCount = hourCounts[hr];
-      }
+      if (hourCounts[hr] > maxCount) { peakHour = hr; maxCount = hourCounts[hr]; }
     }
     document.getElementById("det-peak-hour").innerText = `${peakHour}:00`;
     document.getElementById("det-total-qty").innerText = safeSales.length;
@@ -606,38 +618,29 @@ async function showDetailedSummary() {
     if (topList) {
       const topItems = rankings.filter((i) => i.count > 0).slice(0, 5);
       topList.innerHTML = topItems.length
-        ? topItems
-            .map(
-              (item) => `
+        ? topItems.map((item) => `
           <li class="list-group-item d-flex justify-content-between py-1 px-2 border-0">
             <small>${item.name}</small>
             <span class="badge bg-success rounded-pill">${item.count}</span>
-          </li>
-        `,
-            )
-            .join("")
+          </li>`).join("")
         : `<li class="list-group-item text-muted border-0">No data</li>`;
     }
 
     const worstList = document.getElementById("worst-sellers-list");
     if (worstList) {
       const slowItems = [...rankings].reverse().slice(0, 5);
-      worstList.innerHTML = slowItems
-        .map(
-          (item) => `
+      worstList.innerHTML = slowItems.map((item) => `
         <li class="list-group-item d-flex justify-content-between py-1 px-2 border-0">
           <small>${item.name}</small>
           <span class="badge bg-light text-dark border rounded-pill">${item.count}</span>
-        </li>
-      `,
-        )
-        .join("");
+        </li>`).join("");
     }
 
     renderTrendChart(safeSales);
 
-    const detailModalEl = document.getElementById("detailedSummaryModal");
-    const detailModal = bootstrap.Modal.getOrCreateInstance(detailModalEl);
+    const detailModal = bootstrap.Modal.getOrCreateInstance(
+      document.getElementById("detailedSummaryModal")
+    );
     detailModal.show();
   } catch (err) {
     console.error("DEEP SUMMARY ERROR:", err);
@@ -648,21 +651,17 @@ async function showDetailedSummary() {
 function renderTrendChart(salesData) {
   const ctx = document.getElementById("salesTrendChart").getContext("2d");
 
-  const last7Days = [...Array(7)]
-    .map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return d.toISOString().split("T")[0];
-    })
-    .reverse();
+  const last7Days = [...Array(7)].map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    return d.toISOString().split("T")[0];
+  }).reverse();
 
-  const dailyTotals = last7Days.map((date) => {
-    return salesData
-      .filter(
-        (s) => new Date(s.created_at).toLocaleDateString("en-CA") === date,
-      )
-      .reduce((sum, s) => sum + Number(s.amount_paid), 0);
-  });
+  const dailyTotals = last7Days.map((date) =>
+    salesData
+      .filter((s) => new Date(s.created_at).toLocaleDateString("en-CA") === date)
+      .reduce((sum, s) => sum + Number(s.amount_paid), 0)
+  );
 
   if (salesChart) salesChart.destroy();
 
@@ -670,16 +669,14 @@ function renderTrendChart(salesData) {
     type: "line",
     data: {
       labels: last7Days.map((d) => d.split("-").slice(1).join("/")),
-      datasets: [
-        {
-          label: "Daily Revenue (KES)",
-          data: dailyTotals,
-          borderColor: "#0d6efd",
-          backgroundColor: "rgba(13, 110, 253, 0.1)",
-          fill: true,
-          tension: 0.4,
-        },
-      ],
+      datasets: [{
+        label: "Daily Revenue (KES)",
+        data: dailyTotals,
+        borderColor: "#0d6efd",
+        backgroundColor: "rgba(13, 110, 253, 0.1)",
+        fill: true,
+        tension: 0.4,
+      }],
     },
     options: { responsive: true, plugins: { legend: { display: false } } },
   });
@@ -709,19 +706,12 @@ async function openInventoryManager() {
   if (select) {
     if (allCategories.length === 0) {
       select.innerHTML = `<option value="" disabled selected>Fetching categories...</option>`;
-      const { data, error } = await _supabase
-        .from("categories")
-        .select("id, name");
-
+      const { data, error } = await _supabase.from("categories").select("id, name");
       if (error) {
-        console.error("Manual Category Fetch Error:", error);
         select.innerHTML = `<option value="" disabled selected>Error: ${error.message}</option>`;
         return;
       }
-
-      if (data && data.length > 0) {
-        allCategories = data;
-      }
+      if (data && data.length > 0) allCategories = data;
     }
 
     if (allCategories.length === 0) {
@@ -729,16 +719,15 @@ async function openInventoryManager() {
     } else {
       select.innerHTML = `
         <option value="" disabled selected>Choose a category...</option>
-        ${allCategories
-          .map((c) => `<option value="${c.id}">${c.name}</option>`)
-          .join("")}
+        ${allCategories.map((c) => `<option value="${c.id}">${c.name}</option>`).join("")}
       `;
     }
     updateQuickSuggestions();
   }
 
-  const modalEl = document.getElementById("inventoryModal");
-  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  const modal = bootstrap.Modal.getOrCreateInstance(
+    document.getElementById("inventoryModal")
+  );
   modal.show();
 }
 
@@ -759,16 +748,13 @@ async function renderSalesLog() {
     return;
   }
 
-  list.innerHTML = (sales || [])
-    .map((sale) => {
-      const product = allProducts.find(
-        (p) => String(p.id) === String(sale.product_id),
-      );
-      const date = new Date(sale.created_at);
-      const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      const dateStr = date.toLocaleDateString([], { month: "short", day: "numeric" });
+  list.innerHTML = (sales || []).map((sale) => {
+    const product = allProducts.find((p) => String(p.id) === String(sale.product_id));
+    const date = new Date(sale.created_at);
+    const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const dateStr = date.toLocaleDateString([], { month: "short", day: "numeric" });
 
-      return `
+    return `
       <tr>
         <td><small>${dateStr}, ${timeStr}</small></td>
         <td><small class="fw-bold">${product ? product.name : "Unknown Item"}</small></td>
@@ -776,8 +762,7 @@ async function renderSalesLog() {
         <td><small class="badge bg-light text-dark border">${sale.payment_method}</small></td>
       </tr>
     `;
-    })
-    .join("");
+  }).join("");
 }
 
 function updateQuickSuggestions() {
@@ -786,14 +771,10 @@ function updateQuickSuggestions() {
   const selectedText = select.options[select.selectedIndex]?.text?.toLowerCase().trim();
   const presets = window.categoryPresets[selectedText] || [];
 
-  container.innerHTML = presets
-    .map(
-      (brand) => `
+  container.innerHTML = presets.map((brand) => `
     <button type="button" class="btn btn-xs btn-outline-secondary" style="font-size: 0.7rem; padding: 2px 8px;"
       data-brand="${brand}">${brand}</button>
-  `,
-    )
-    .join("");
+  `).join("");
 }
 
 function applySuggestion(brand) {
@@ -803,21 +784,13 @@ function applySuggestion(brand) {
 }
 
 function renderFullInventoryList() {
-  const q = (document.getElementById("viewSearchInput")?.value || "")
-    .toLowerCase()
-    .trim();
+  const q = (document.getElementById("viewSearchInput")?.value || "").toLowerCase().trim();
   const list = document.getElementById("inventory-view-list");
   const filtered = allProducts.filter((p) => p.name.toLowerCase().includes(q));
 
-  list.innerHTML = filtered
-    .map((p) => {
-      const stockClass =
-        p.stock <= 0
-          ? "text-danger fw-bold"
-          : p.stock < 5
-            ? "text-warning fw-bold"
-            : "";
-      return `
+  list.innerHTML = filtered.map((p) => {
+    const stockClass = p.stock <= 0 ? "text-danger fw-bold" : p.stock < 5 ? "text-warning fw-bold" : "";
+    return `
       <tr>
         <td><small class="fw-bold">${p.name}</small></td>
         <td><small class="text-muted">${p.categories?.name || "N/A"}</small></td>
@@ -825,20 +798,15 @@ function renderFullInventoryList() {
         <td class="text-center ${stockClass}"><small>${p.stock}</small></td>
       </tr>
     `;
-    })
-    .join("");
+  }).join("");
 }
 
 function renderInventoryList() {
-  const q = (document.getElementById("inventorySearchInput")?.value || "")
-    .toLowerCase()
-    .trim();
+  const q = (document.getElementById("inventorySearchInput")?.value || "").toLowerCase().trim();
   const list = document.getElementById("inventory-management-list");
   const filtered = allProducts.filter((p) => p.name.toLowerCase().includes(q));
 
-  list.innerHTML = filtered
-    .map(
-      (p) => `
+  list.innerHTML = filtered.map((p) => `
     <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
       <div style="flex: 1;">
         <h6 class="mb-0 text-truncate" style="max-width: 150px;">${p.name}</h6>
@@ -856,9 +824,7 @@ function renderInventoryList() {
         </div>
       </div>
     </div>
-  `,
-    )
-    .join("");
+  `).join("");
 }
 
 async function quickStock(id, amount) {
@@ -866,10 +832,7 @@ async function quickStock(id, amount) {
   if (!product) return;
 
   const newStock = product.stock + amount;
-  const { error } = await _supabase
-    .from("products")
-    .update({ stock: newStock })
-    .eq("id", id);
+  const { error } = await _supabase.from("products").update({ stock: newStock }).eq("id", id);
 
   if (!error) {
     showNotification(`Added ${amount} to ${product.name}`, "success");
@@ -892,11 +855,7 @@ async function saveStockUpdate(id, inputId) {
   if (!product) return;
 
   const newStock = product.stock + addAmount;
-
-  const { error } = await _supabase
-    .from("products")
-    .update({ stock: newStock })
-    .eq("id", id);
+  const { error } = await _supabase.from("products").update({ stock: newStock }).eq("id", id);
 
   if (error) {
     showNotification("Error updating database", "danger");
@@ -908,15 +867,11 @@ async function saveStockUpdate(id, inputId) {
 }
 
 function renderPriceList() {
-  const q = (document.getElementById("priceSearchInput")?.value || "")
-    .toLowerCase()
-    .trim();
+  const q = (document.getElementById("priceSearchInput")?.value || "").toLowerCase().trim();
   const list = document.getElementById("price-management-list");
   const filtered = allProducts.filter((p) => p.name.toLowerCase().includes(q));
 
-  list.innerHTML = filtered
-    .map(
-      (p) => `
+  list.innerHTML = filtered.map((p) => `
     <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
       <div style="flex: 1;">
         <h6 class="mb-0">${p.name}</h6>
@@ -927,9 +882,7 @@ function renderPriceList() {
         <button class="btn btn-sm btn-primary" onclick="savePriceUpdate('${p.id}', 'price-input-${p.id}')">Update</button>
       </div>
     </div>
-  `,
-    )
-    .join("");
+  `).join("");
 }
 
 async function savePriceUpdate(id, inputId) {
@@ -941,10 +894,7 @@ async function savePriceUpdate(id, inputId) {
     return;
   }
 
-  const { error } = await _supabase
-    .from("products")
-    .update({ price: newPrice })
-    .eq("id", id);
+  const { error } = await _supabase.from("products").update({ price: newPrice }).eq("id", id);
 
   if (error) {
     showNotification("Error updating price", "danger");
@@ -967,22 +917,15 @@ async function addNewProduct() {
     return;
   }
 
-  const { error } = await _supabase
-    .from("products")
-    .insert([{ name, category_id, price, stock }])
-    .select();
+  const { error } = await _supabase.from("products").insert([{ name, category_id, price, stock }]).select();
 
   if (error) {
-    console.error("Supabase Insert Error:", error);
     showNotification(`Error: ${error.message}`, "danger");
   } else {
     showNotification(`${name} added successfully!`, "success");
     document.getElementById("new-p-name").value = "";
     document.getElementById("new-p-name").focus();
-
-    const manageTabTrigger = document.querySelector("#manage-tab");
-    bootstrap.Tab.getOrCreateInstance(manageTabTrigger).show();
-
+    bootstrap.Tab.getOrCreateInstance(document.querySelector("#manage-tab")).show();
     await fetchData();
     renderInventoryList();
   }
@@ -1075,13 +1018,11 @@ if (navigator.onLine) {
   }
 }
 
-// ================= SERVICE WORKER (single registration with auto-update) =================
+// ================= SERVICE WORKER =================
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").then((reg) => {
-      // Check for updates every time the app loads
       reg.update();
-
       reg.onupdatefound = () => {
         const newSW = reg.installing;
         newSW.onstatechange = () => {
