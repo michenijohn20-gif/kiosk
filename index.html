@@ -166,7 +166,10 @@
             <!-- Sub-navigation -->
             <ul class="nav nav-pills mb-3 justify-content-center" id="inventoryTabs" role="tablist">
               <li class="nav-item" role="presentation">
-                <button class="nav-link active btn-sm px-3" id="manage-tab" data-bs-toggle="pill" data-bs-target="#manage-pane" type="button" role="tab">Update Stock</button>
+                <button class="nav-link active btn-sm px-3" id="view-tab" data-bs-toggle="pill" data-bs-target="#view-pane" type="button" role="tab">Overview</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link btn-sm px-3" id="manage-tab" data-bs-toggle="pill" data-bs-target="#manage-pane" type="button" role="tab">Update Stock</button>
               </li>
               <li class="nav-item" role="presentation">
                 <button class="nav-link btn-sm px-3" id="price-tab" data-bs-toggle="pill" data-bs-target="#price-pane" type="button" role="tab">Update Prices</button>
@@ -177,8 +180,26 @@
             </ul>
 
             <div class="tab-content">
+              <!-- View Inventory Overview -->
+              <div class="tab-pane fade show active" id="view-pane" role="tabpanel">
+                <input class="form-control mb-3" id="viewSearchInput" placeholder="Filter inventory..." oninput="renderFullInventoryList()" />
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                  <table class="table table-sm table-hover border">
+                    <thead class="table-light sticky-top">
+                      <tr>
+                        <th>Product</th>
+                        <th>Category</th>
+                        <th class="text-end">Price</th>
+                        <th class="text-center">Stock</th>
+                      </tr>
+                    </thead>
+                    <tbody id="inventory-view-list"></tbody>
+                  </table>
+                </div>
+              </div>
+
               <!-- Update Stock Tab -->
-              <div class="tab-pane fade show active" id="manage-pane" role="tabpanel">
+              <div class="tab-pane fade" id="manage-pane" role="tabpanel">
                 <input class="form-control mb-3" id="inventorySearchInput" placeholder="Search items to update..." oninput="renderInventoryList()" />
                 <div id="inventory-management-list" style="max-height: 400px; overflow-y: auto;"></div>
               </div>
@@ -198,7 +219,8 @@
                   </div>
                   <div class="mb-2">
                     <label class="form-label small fw-bold">Select Category</label>
-                    <select class="form-select" id="new-p-cat-select" required></select>
+                    <!-- Category Disabled for now -->
+                    <select class="form-select" id="new-p-cat-select" required disabled></select>
                   </div>
                   <div class="row g-2 mb-3">
                     <div class="col-7"><label class="form-label small fw-bold">Price (KES)</label><input type="number" class="form-control" id="new-p-price" required></div>

@@ -508,6 +508,7 @@ function renderTrendChart(salesData) {
 
 // ================= INVENTORY MANAGEMENT =================
 async function openInventoryManager() {
+  renderFullInventoryList();
   renderInventoryList();
   renderPriceList();
 
@@ -549,6 +550,25 @@ async function openInventoryManager() {
   const modalEl = document.getElementById("inventoryModal");
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   modal.show();
+}
+
+function renderFullInventoryList() {
+  const q = document.getElementById("viewSearchInput")?.value.toLowerCase().trim() || "";
+  const list = document.getElementById("inventory-view-list");
+  
+  const filtered = allProducts.filter(p => p.name.toLowerCase().includes(q));
+
+  list.innerHTML = filtered.map(p => {
+    const stockClass = p.stock <= 0 ? 'text-danger fw-bold' : p.stock < 5 ? 'text-warning fw-bold' : '';
+    return `
+      <tr>
+        <td><small class="fw-bold">${p.name}</small></td>
+        <td><small class="text-muted">${p.categories?.name || 'N/A'}</small></td>
+        <td class="text-end"><small>${p.price.toLocaleString()}</small></td>
+        <td class="text-center ${stockClass}"><small>${p.stock}</small></td>
+      </tr>
+    `;
+  }).join("");
 }
 
 function renderInventoryList() {
