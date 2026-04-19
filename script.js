@@ -7,33 +7,32 @@ const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 let cart = [];
 let allProducts = [];
 let allCategories = [];
-let lastSale = null; // Store for receipt
+let lastSale = null;
 let salesChart = null;
+
 // ================= FETCH PRODUCTS =================
 async function fetchData() {
   const loading = document.getElementById("loading-state");
 
   try {
-    // Fetch products and categories separately to avoid relationship errors
     const [prodRes, catRes] = await Promise.all([
       _supabase.from("products").select("*"),
-      _supabase.from("categories").select("*").order("name"), // Added order for consistency
+      _supabase.from("categories").select("*").order("name"),
     ]);
 
     if (prodRes.error) throw prodRes.error;
     if (catRes.error) throw catRes.error;
 
     allCategories = catRes.data || [];
-    localStorage.setItem("allCategories", JSON.stringify(allCategories)); // Save to localStorage
+    localStorage.setItem("allCategories", JSON.stringify(allCategories));
 
-    // Manually join the data in JavaScript
     allProducts = (prodRes.data || []).map((p) => ({
       ...p,
       categories: allCategories.find(
         (c) => String(c.id) === String(p.category_id),
       ),
     }));
-    localStorage.setItem("allProducts", JSON.stringify(allProducts)); // Save to localStorage
+    localStorage.setItem("allProducts", JSON.stringify(allProducts));
 
     renderCategoryPills();
     renderCards(allProducts);
@@ -46,7 +45,6 @@ async function fetchData() {
           "Database schema mismatch. Try 'Reload PostgREST' in Supabase API settings.";
       }
 
-      // Attempt to load from localStorage if fetch fails
       const cachedProducts = localStorage.getItem("allProducts");
       const cachedCategories = localStorage.getItem("allCategories");
 
@@ -57,7 +55,6 @@ async function fetchData() {
         renderCategoryPills();
         renderCards(allProducts);
       } else {
-        // If no cached data, show original error
         loading.innerHTML = `
           <div class="alert alert-danger mx-auto" style="max-width: 400px;">
             <strong>Load Failed:</strong> ${err.message}<br>
@@ -77,7 +74,7 @@ function renderCategoryPills() {
     `<button class="btn btn-sm btn-outline-primary active" onclick="filterByCategory('all', this)">All</button>` +
     allCategories
       .map(
-        (c) => ` 
+        (c) => `
       <button class="btn btn-sm btn-outline-primary" data-category="${c.name}" onclick="filterByCategory(this.dataset.category, this)">${c.name}</button>
     `,
       )
@@ -102,16 +99,13 @@ let searchTimeout;
 
 function handleSearch() {
   clearTimeout(searchTimeout);
-
   searchTimeout = setTimeout(() => {
     const q = (document.getElementById("searchInput").value || "")
       .toLowerCase()
       .trim();
-
     const filtered = allProducts.filter((p) =>
       p.name.toLowerCase().includes(q),
     );
-
     renderCards(filtered);
   }, 150);
 }
@@ -143,21 +137,18 @@ function renderCards(products) {
   const grouped = {};
 
   products.forEach((p) => {
-    // Ensure products are sorted by name before grouping
-    // Access nested category name from the join
     const category = p.categories?.name || "Uncategorized";
     if (!grouped[category]) grouped[category] = [];
     grouped[category].push(p);
   });
 
   grid.innerHTML = Object.keys(grouped)
-    .sort() // Sort categories alphabetically
+    .sort()
     .map(
       (cat) => `
     <div class="col-12 mt-2" id="section-${cat.replace(/\s+/g, "")}">
       <h5 class="text-primary">${cat}</h5>
     </div>
-
     ${grouped[cat]
       .map(
         (product) => `
@@ -196,6 +187,7 @@ function renderCards(products) {
   document.getElementById("total-items-count").innerText =
     `${products.length} Products`;
 }
+
 // ================= QTY =================
 function changeQty(btn, val) {
   const qtyDisplay = btn.parentElement.querySelector(".qty-display");
@@ -221,21 +213,17 @@ function showNotification(message, type = "info") {
   `;
 
   document.body.appendChild(toast);
-
-  setTimeout(() => {
-    toast.remove();
-  }, 3000);
+  setTimeout(() => toast.remove(), 3000);
 }
 
 // ================= ADD TO CART =================
 function addToCart(btn, productId) {
-  // Changed to accept productId directly
   const product = allProducts.find((p) => String(p.id) === String(productId));
   if (!product) return;
 
   const qtySpan = btn.closest(".card-body")?.querySelector(".qty-display");
   if (!qtySpan) return;
-  const qty = parseInt(qtySpan.innerText); // Get quantity from the specific card
+  const qty = parseInt(qtySpan.innerText);
 
   if (product.stock <= 0) {
     showNotification("This item is currently out of stock!");
@@ -256,7 +244,7 @@ function addToCart(btn, productId) {
     cart.push({ ...product, id, qty: qty });
   }
 
-  qtySpan.innerText = "1"; // Reset quantity display after adding
+  qtySpan.innerText = "1";
   updateCartUI();
   showNotification(`${product.name} added to cart!`, "success");
 }
@@ -264,16 +252,12 @@ function addToCart(btn, productId) {
 // ================= REMOVE =================
 function removeFromCart(id) {
   id = String(id);
-
   const item = cart.find((p) => String(p.id) === id);
   if (!item) return;
-
   item.qty--;
-
   if (item.qty <= 0) {
     cart = cart.filter((p) => String(p.id) !== id);
   }
-
   updateCartUI();
 }
 
@@ -282,13 +266,10 @@ function updateCartUI() {
   const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const count = cart.reduce((s, i) => s + i.qty, 0);
 
-  document.getElementById("cart-total-price").innerText =
-    total.toLocaleString();
-
+  document.getElementById("cart-total-price").innerText = total.toLocaleString();
   document.getElementById("cart-summary").innerText = `${count} items`;
   document.getElementById("cart-badge").innerText = count;
 
-  // Update Quick Bottom Bar
   const quickBarTotal = document.getElementById("quick-total-price");
   if (quickBarTotal) quickBarTotal.innerText = total.toLocaleString();
 
@@ -311,18 +292,15 @@ function renderCartItems() {
     .map(
       (item) => `
     <li class="list-group-item d-flex justify-content-between align-items-center">
-
       <div>
         <b>${item.name}</b><br>
         <small>${item.price} x ${item.qty}</small>
       </div>
-
       <div>
         <b>${item.price * item.qty} KES</b>
         <button class="btn btn-sm btn-danger ms-2"
           onclick="removeFromCart('${item.id}')">−</button>
       </div>
-
     </li>
   `,
     )
@@ -364,7 +342,6 @@ async function syncOfflineQueue() {
 
   for (const sale of queue) {
     try {
-      // Atomic transaction via Supabase RPC
       const { error } = await _supabase.rpc("process_checkout", {
         cart_items: sale.items.map((i) => ({
           id: i.id,
@@ -376,7 +353,7 @@ async function syncOfflineQueue() {
       if (error) throw error;
     } catch (err) {
       console.error("Failed to sync queued sale:", err);
-      failed.push(sale); // Keep failed ones in queue
+      failed.push(sale);
     }
   }
 
@@ -384,7 +361,7 @@ async function syncOfflineQueue() {
 
   if (failed.length === 0) {
     showNotification("All offline sales synced successfully!", "success");
-    fetchData(); // Refresh products with updated stock
+    fetchData();
   } else {
     showNotification(
       `${failed.length} sale(s) failed to sync. Will retry later.`,
@@ -393,7 +370,6 @@ async function syncOfflineQueue() {
   }
 }
 
-// Apply stock deduction locally so UI stays accurate while offline
 function applyStockLocally(cartItems) {
   cartItems.forEach((cartItem) => {
     const product = allProducts.find(
@@ -427,7 +403,6 @@ async function completeSale() {
     : 'input[name="payment-quick"]:checked';
   const payment = document.querySelector(selector)?.value || "Cash";
 
-  // Store receipt data before anything else
   lastSale = {
     items: [...cart],
     total: cart.reduce((s, i) => s + i.price * i.qty, 0),
@@ -452,7 +427,7 @@ async function completeSale() {
     });
     if (error) throw error;
     finalizeSale();
-    fetchData(); // Refresh stock from server
+    fetchData();
   } catch (err) {
     showNotification("Sale failed. Saving locally...", "warning");
     addToOfflineQueue({ items: [...cart], payment });
@@ -474,7 +449,6 @@ function finalizeSale() {
 function showReceiptPopup() {
   document.getElementById("receipt-details").innerText =
     `${lastSale.total.toLocaleString()} KES paid via ${lastSale.payment}`;
-
   const modal = new bootstrap.Modal(document.getElementById("receiptModal"));
   modal.show();
 }
@@ -511,7 +485,6 @@ async function getTopSellingItems() {
     return acc;
   }, {});
 
-  // Map through ALL products to include items with 0 sales
   return allProducts
     .map((p) => ({
       name: p.name,
@@ -520,7 +493,7 @@ async function getTopSellingItems() {
     .sort((a, b) => b.count - a.count);
 }
 
-// ================= SUMMARY (NEW & IMPROVED) =================
+// ================= SUMMARY =================
 async function showSummary() {
   try {
     const today = new Date();
@@ -537,15 +510,11 @@ async function showSummary() {
     if (error) throw error;
 
     const safeSales = sales || [];
-
-    let cash = 0;
-    let mpesa = 0;
-    let total = 0;
+    let cash = 0, mpesa = 0, total = 0;
 
     safeSales.forEach((s) => {
       const amt = Number(s.amount_paid || 0);
       total += amt;
-
       if (s.payment_method === "Cash") cash += amt;
       if (s.payment_method === "M-Pesa") mpesa += amt;
     });
@@ -553,8 +522,7 @@ async function showSummary() {
     document.getElementById("stat-cash").innerText = cash.toLocaleString();
     document.getElementById("stat-mpesa").innerText = mpesa.toLocaleString();
     document.getElementById("stat-total").innerText = total.toLocaleString();
-    document.getElementById("stat-count").innerText =
-      `${safeSales.length} sales`;
+    document.getElementById("stat-count").innerText = `${safeSales.length} sales`;
 
     const { data: lowStock } = await _supabase
       .from("products")
@@ -562,7 +530,6 @@ async function showSummary() {
       .lt("stock", 5);
 
     const list = document.getElementById("low-stock-list");
-
     list.innerHTML = (lowStock || []).length
       ? lowStock
           .map(
@@ -576,7 +543,6 @@ async function showSummary() {
           .join("")
       : `<li class="list-group-item">All stock OK</li>`;
 
-    // SHOW MODAL
     const inventoryModal = bootstrap.Modal.getInstance(
       document.getElementById("inventoryModal"),
     );
@@ -594,7 +560,6 @@ async function showSummary() {
 // ================= DEEP ANALYSIS =================
 async function showDetailedSummary() {
   try {
-    // Get last 30 days of data for better statistics
     const monthAgo = new Date();
     monthAgo.setDate(monthAgo.getDate() - 30);
 
@@ -607,7 +572,6 @@ async function showDetailedSummary() {
 
     const safeSales = sales || [];
 
-    // 1. Calculate Average Transaction Value (ATV)
     const totalRevenue = safeSales.reduce(
       (sum, s) => sum + Number(s.amount_paid || 0),
       0,
@@ -616,14 +580,12 @@ async function showDetailedSummary() {
     document.getElementById("det-avg-sale").innerText =
       Math.round(avgSale).toLocaleString() + " KES";
 
-    // 2. Calculate Peak Hour
-    const hourCounts = (safeSales || []).reduce((acc, s) => {
+    const hourCounts = safeSales.reduce((acc, s) => {
       const hr = new Date(s.created_at).getHours();
       acc[hr] = (acc[hr] || 0) + 1;
       return acc;
     }, {});
-    let peakHour = 0,
-      maxCount = -1;
+    let peakHour = 0, maxCount = -1;
     for (const hr in hourCounts) {
       if (hourCounts[hr] > maxCount) {
         peakHour = hr;
@@ -631,17 +593,13 @@ async function showDetailedSummary() {
       }
     }
     document.getElementById("det-peak-hour").innerText = `${peakHour}:00`;
-
-    // 3. Total Items Sold (Volume)
     document.getElementById("det-total-qty").innerText = safeSales.length;
 
-    // Hide the basic summary modal first
     const summaryModal = bootstrap.Modal.getInstance(
       document.getElementById("summaryModal"),
     );
     if (summaryModal) summaryModal.hide();
 
-    // 4. Rankings (Best & Worst)
     const rankings = await getTopSellingItems();
 
     const topList = document.getElementById("top-sellers-list");
@@ -676,10 +634,8 @@ async function showDetailedSummary() {
         .join("");
     }
 
-    // 4. Trend Chart (Last 7 Days)
     renderTrendChart(safeSales);
 
-    // Show Modal
     const detailModalEl = document.getElementById("detailedSummaryModal");
     const detailModal = bootstrap.Modal.getOrCreateInstance(detailModalEl);
     detailModal.show();
@@ -692,7 +648,6 @@ async function showDetailedSummary() {
 function renderTrendChart(salesData) {
   const ctx = document.getElementById("salesTrendChart").getContext("2d");
 
-  // Group sales by day
   const last7Days = [...Array(7)]
     .map((_, i) => {
       const d = new Date();
@@ -714,7 +669,7 @@ function renderTrendChart(salesData) {
   salesChart = new Chart(ctx, {
     type: "line",
     data: {
-      labels: last7Days.map((d) => d.split("-").slice(1).join("/")), // MM/DD format
+      labels: last7Days.map((d) => d.split("-").slice(1).join("/")),
       datasets: [
         {
           label: "Daily Revenue (KES)",
@@ -736,7 +691,7 @@ async function openInventoryManager() {
   renderInventoryList();
   renderPriceList();
   renderSalesLog();
-  // Suggestions Mapping
+
   window.categoryPresets = {
     sodas: ["Coca-Cola", "Fanta", "Sprite", "Pepsi", "Krest", "Stoney"],
     soda: ["Coca-Cola", "Fanta", "Sprite", "Pepsi", "Krest", "Stoney"],
@@ -745,15 +700,13 @@ async function openInventoryManager() {
     water: ["Dasani", "Keringet", "Aquafina", "Quench"],
   };
 
-  // Close summary if open
   const summaryModal = bootstrap.Modal.getInstance(
     document.getElementById("summaryModal"),
   );
-  if (summaryModal) summaryModal.hide(); // Close summary if open
+  if (summaryModal) summaryModal.hide();
 
   const select = document.getElementById("new-p-cat-select");
   if (select) {
-    // If categories are empty, try to fetch them again to ensure we aren't stuck
     if (allCategories.length === 0) {
       select.innerHTML = `<option value="" disabled selected>Fetching categories...</option>`;
       const { data, error } = await _supabase
@@ -771,7 +724,6 @@ async function openInventoryManager() {
       }
     }
 
-    // Update dropdown content based on current data
     if (allCategories.length === 0) {
       select.innerHTML = `<option value="" disabled selected>No categories found (Check RLS Policies)</option>`;
     } else {
@@ -813,14 +765,8 @@ async function renderSalesLog() {
         (p) => String(p.id) === String(sale.product_id),
       );
       const date = new Date(sale.created_at);
-      const timeStr = date.toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-      const dateStr = date.toLocaleDateString([], {
-        month: "short",
-        day: "numeric",
-      });
+      const timeStr = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const dateStr = date.toLocaleDateString([], { month: "short", day: "numeric" });
 
       return `
       <tr>
@@ -837,16 +783,13 @@ async function renderSalesLog() {
 function updateQuickSuggestions() {
   const select = document.getElementById("new-p-cat-select");
   const container = document.getElementById("quick-suggestions");
-  const selectedText = select.options[select.selectedIndex]?.text
-    ?.toLowerCase()
-    .trim();
-
+  const selectedText = select.options[select.selectedIndex]?.text?.toLowerCase().trim();
   const presets = window.categoryPresets[selectedText] || [];
 
   container.innerHTML = presets
     .map(
-      (brand) => ` 
-    <button type="button" class="btn btn-xs btn-outline-secondary" style="font-size: 0.7rem; padding: 2px 8px;" 
+      (brand) => `
+    <button type="button" class="btn btn-xs btn-outline-secondary" style="font-size: 0.7rem; padding: 2px 8px;"
       data-brand="${brand}">${brand}</button>
   `,
     )
@@ -864,7 +807,6 @@ function renderFullInventoryList() {
     .toLowerCase()
     .trim();
   const list = document.getElementById("inventory-view-list");
-
   const filtered = allProducts.filter((p) => p.name.toLowerCase().includes(q));
 
   list.innerHTML = filtered
@@ -892,7 +834,6 @@ function renderInventoryList() {
     .toLowerCase()
     .trim();
   const list = document.getElementById("inventory-management-list");
-
   const filtered = allProducts.filter((p) => p.name.toLowerCase().includes(q));
 
   list.innerHTML = filtered
@@ -961,8 +902,8 @@ async function saveStockUpdate(id, inputId) {
     showNotification("Error updating database", "danger");
   } else {
     showNotification("Stock updated successfully!", "success");
-    await fetchData(); // Refresh global products and main UI
-    renderInventoryList(); // Refresh the list in the modal
+    await fetchData();
+    renderInventoryList();
   }
 }
 
@@ -971,7 +912,6 @@ function renderPriceList() {
     .toLowerCase()
     .trim();
   const list = document.getElementById("price-management-list");
-
   const filtered = allProducts.filter((p) => p.name.toLowerCase().includes(q));
 
   list.innerHTML = filtered
@@ -982,7 +922,7 @@ function renderPriceList() {
         <h6 class="mb-0">${p.name}</h6>
         <small class="text-muted">Current Price: <b>${p.price} KES</b></small>
       </div>
-      <div class="d-flex gap-2" style="width: 180px;"> 
+      <div class="d-flex gap-2" style="width: 180px;">
         <input type="number" class="form-control form-control-sm" id="price-input-${p.id}" value="${p.price}">
         <button class="btn btn-sm btn-primary" onclick="savePriceUpdate('${p.id}', 'price-input-${p.id}')">Update</button>
       </div>
@@ -1010,9 +950,9 @@ async function savePriceUpdate(id, inputId) {
     showNotification("Error updating price", "danger");
   } else {
     showNotification("Price updated successfully!", "success");
-    await fetchData(); // Refresh global products and main UI
-    renderPriceList(); // Refresh the list in the modal
-    renderInventoryList(); // Keep both lists in sync
+    await fetchData();
+    renderPriceList();
+    renderInventoryList();
   }
 }
 
@@ -1037,24 +977,21 @@ async function addNewProduct() {
     showNotification(`Error: ${error.message}`, "danger");
   } else {
     showNotification(`${name} added successfully!`, "success");
-
-    // Speed optimization: Only clear the Name and focus back
     document.getElementById("new-p-name").value = "";
     document.getElementById("new-p-name").focus();
 
     const manageTabTrigger = document.querySelector("#manage-tab");
     bootstrap.Tab.getOrCreateInstance(manageTabTrigger).show();
 
-    // Refresh main data and modal list
     await fetchData();
     renderInventoryList();
   }
 }
 
+// ================= ONLINE STATUS =================
 function updateOnlineStatusUI() {
   const statusEl = document.getElementById("connection-status");
   if (!statusEl) return;
-
   if (navigator.onLine) {
     statusEl.innerText = "Online";
     statusEl.classList.replace("bg-danger", "bg-success");
@@ -1067,10 +1004,7 @@ function updateOnlineStatusUI() {
 function notifyIfNoInternet() {
   updateOnlineStatusUI();
   if (!navigator.onLine) {
-    showNotification(
-      "You are currently offline. Some features may not work.",
-      "warning",
-    );
+    showNotification("You are currently offline. Some features may not work.", "warning");
   }
 }
 
@@ -1090,7 +1024,6 @@ function toggleTheme() {
   const html = document.documentElement;
   const currentTheme = html.getAttribute("data-bs-theme") || "light";
   const newTheme = currentTheme === "light" ? "dark" : "light";
-
   html.setAttribute("data-bs-theme", newTheme);
   localStorage.setItem("theme", newTheme);
   updateThemeIcon(newTheme);
@@ -1103,30 +1036,21 @@ function updateThemeIcon(theme) {
 
 // ================= EVENT DELEGATION =================
 function initEventListeners() {
-  // Main product grid: qty +/- and add-to-cart buttons
   document.getElementById("inventory-grid").addEventListener("click", (e) => {
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
-
     const action = btn.dataset.action;
-
-    if (action === "qty-minus") {
-      changeQty(btn, -1);
-    } else if (action === "qty-plus") {
-      changeQty(btn, 1);
-    } else if (action === "add-to-cart") {
-      addToCart(btn, btn.dataset.id);
-    }
+    if (action === "qty-minus") changeQty(btn, -1);
+    else if (action === "qty-plus") changeQty(btn, 1);
+    else if (action === "add-to-cart") addToCart(btn, btn.dataset.id);
   });
 
-  // Inventory management modal: quick-stock buttons
   document.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-action='quick-stock']");
     if (!btn) return;
     quickStock(btn.dataset.id, parseInt(btn.dataset.amount));
   });
 
-  // Quick-suggestions (brand presets) in add-product tab
   document.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-brand]");
     if (!btn) return;
@@ -1139,28 +1063,33 @@ fetchData();
 updateCartUI();
 initEventListeners();
 
-// Initialize Theme
 const savedTheme = localStorage.getItem("theme") || "light";
 document.documentElement.setAttribute("data-bs-theme", savedTheme);
 updateThemeIcon(savedTheme);
 
-// Sync any sales that were queued while offline
 if (navigator.onLine) {
   const pending = getOfflineQueue();
   if (pending.length > 0) {
-    showNotification(
-      `You have ${pending.length} unsynced sale(s). Syncing now...`,
-      "info",
-    );
+    showNotification(`You have ${pending.length} unsynced sale(s). Syncing now...`, "info");
     syncOfflineQueue();
   }
 }
-// Register the Service Worker
+
+// ================= SERVICE WORKER (single registration with auto-update) =================
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then((reg) => console.log("Service Worker registered!", reg))
-      .catch((err) => console.log("Service Worker registration failed:", err));
+    navigator.serviceWorker.register("/sw.js").then((reg) => {
+      // Check for updates every time the app loads
+      reg.update();
+
+      reg.onupdatefound = () => {
+        const newSW = reg.installing;
+        newSW.onstatechange = () => {
+          if (newSW.state === "activated") {
+            showNotification("App updated! Refresh for the latest version.", "info");
+          }
+        };
+      };
+    }).catch((err) => console.log("Service Worker registration failed:", err));
   });
 }
