@@ -49,12 +49,6 @@
         scrollbar-width: none;
       }
 
-      /* Improve card distinction in dark mode */
-      [data-bs-theme="dark"] .card {
-        background-color: var(--bs-body-tertiary-bg);
-        border: 1px solid var(--bs-border-color-translucent) !important;
-      }
-
       /* Custom Animations */
       @keyframes modalFadeDown {
         from { transform: translateY(-30px); opacity: 0; }
@@ -78,13 +72,6 @@
         <span class="navbar-brand">Mini POS</span>
 
         <div class="d-flex align-items-center gap-2">
-          <button
-            class="btn btn-outline-light btn-sm"
-            id="themeToggle"
-            onclick="toggleTheme()"
-          >
-            🌙
-          </button>
           <span class="badge bg-secondary" id="total-items-count">
             0 Products
           </span>

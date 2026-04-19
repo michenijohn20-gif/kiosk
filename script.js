@@ -838,26 +838,9 @@ async function addNewProduct() {
   }
 }
 
-// ================= THEME TOGGLE =================
-function toggleTheme() {
-  const html = document.documentElement;
-  const currentTheme = html.getAttribute("data-bs-theme") || "light";
-  const newTheme = currentTheme === "light" ? "dark" : "light";
-  
-  html.setAttribute("data-bs-theme", newTheme);
-  localStorage.setItem("theme", newTheme);
-  updateThemeIcon(newTheme);
-}
-
-function updateThemeIcon(theme) {
-  const btn = document.getElementById("themeToggle");
-  if (btn) btn.innerText = theme === "dark" ? "☀️" : "🌙";
-}
-
 // ================= EVENT LISTENERS =================
 function initEventListeners() {
   // Static elements
-  document.getElementById("themeToggle")?.addEventListener("click", toggleTheme);
   document.getElementById("summaryBtn")?.addEventListener("click", showSummary);
   document.getElementById("clearBtn")?.addEventListener("click", clearCart);
   document.getElementById("inventoryBtn")?.addEventListener("click", openInventoryManager);
@@ -919,8 +902,3 @@ function initEventListeners() {
 fetchData();
 updateCartUI();
 initEventListeners();
-
-// Initialize Theme
-const savedTheme = localStorage.getItem("theme") || "light";
-document.documentElement.setAttribute("data-bs-theme", savedTheme);
-updateThemeIcon(savedTheme);
