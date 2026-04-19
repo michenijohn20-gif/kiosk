@@ -274,6 +274,33 @@ async function checkout() {
   fetchData();
 }
 
+// ================= RANKING =================
+async function getTopSellingItems() {
+  const { data: sales, error } = await _supabase
+    .from("sales")
+    .select("product_id");
+
+  if (error) {
+    console.error("Error fetching sales ranking:", error);
+    return [];
+  }
+
+  const counts = (sales || []).reduce((acc, sale) => {
+    acc[sale.product_id] = (acc[sale.product_id] || 0) + 1;
+    return acc;
+  }, {});
+
+  return Object.entries(counts)
+    .map(([id, count]) => {
+      const product = allProducts.find((p) => String(p.id) === String(id));
+      return {
+        name: product ? product.name : `Product ${id}`,
+        count: count,
+      };
+    })
+    .sort((a, b) => b.count - a.count);
+}
+
 // ================= SUMMARY (NEW & IMPROVED) =================
 async function showSummary() {
   try {
