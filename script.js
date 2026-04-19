@@ -14,14 +14,14 @@ let salesChart = null;
 
 // Load from cache instantly — app is usable in under 1 second
 function loadFromCache() {
-  const cachedProducts = localStorage.getItem("allProducts");
-  const cachedCategories = localStorage.getItem("allCategories");
+  const cachedProducts = localStorage.getItem("allProducts"); //
+  const cachedCategories = localStorage.getItem("allCategories"); //
   if (cachedProducts && cachedCategories) {
-    allProducts = JSON.parse(cachedProducts);
-    allCategories = JSON.parse(cachedCategories);
+    allProducts = JSON.parse(cachedProducts); //
+    allCategories = JSON.parse(cachedCategories); //
     applyBestSellerSorting(); // Apply sorting to cached products
-    renderCategoryPills();
-    renderCards(allProducts);
+    renderCategoryPills(); //
+    renderCards(allProducts); //
     return true;
   }
   return false;
@@ -36,8 +36,6 @@ function fetchWithTimeout(promise, ms = 6000) {
 }
 
 async function fetchData() {
-  const loading = document.getElementById("loading-state");
-
   // 1. Show cache IMMEDIATELY — no spinner, no waiting
   const hadCache = loadFromCache();
 
@@ -75,23 +73,20 @@ async function fetchData() {
     // Apply best seller sorting using available sales data (fresh or cached)
     applyBestSellerSorting();
 
-    // Silently update UI with fresh server data
+    // Update UI with fresh server data
     renderCategoryPills();
     renderCards(allProducts);
+    hideSplashScreen();
 
   } catch (err) {
     if (hadCache) {
       // Cache already showing — quiet notification only
       showNotification("Offline: Showing cached products.", "info");
+      hideSplashScreen();
     } else {
       // First ever launch with no internet
-      if (loading) {
-        loading.innerHTML = `
-          <div class="alert alert-warning mx-auto" style="max-width: 400px;">
-            <strong>No connection</strong><br>
-            <small>Open the app while online at least once to enable offline mode.</small>
-          </div>`;
-      }
+      showNotification("Failed to load products. Please check your internet connection.", "danger");
+      hideSplashScreen();
     }
   }
 }
@@ -162,8 +157,6 @@ function startVoiceSearch() {
 // ================= RENDER PRODUCTS =================
 function renderCards(products) {
   const grid = document.getElementById("inventory-grid");
-  const loading = document.getElementById("loading-state");
-  if (loading) loading.remove();
 
   const grouped = {};
 
@@ -262,6 +255,16 @@ function showNotification(message, type = "info") {
 
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3000);
+}
+
+// ================= SPLASH SCREEN =================
+function hideSplashScreen() {
+  const splashScreen = document.getElementById("splash-screen");
+  if (splashScreen) {
+    splashScreen.classList.add("fade-out");
+    // Remove the element from the DOM after the transition completes
+    setTimeout(() => splashScreen.remove(), 500); // Match CSS transition duration
+  }
 }
 
 // ================= ADD TO CART =================

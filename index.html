@@ -47,6 +47,23 @@
         scrollbar-width: none;
       }
 
+      /* Splash Screen Styles */
+      #splash-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: var(--bs-body-bg); /* Use Bootstrap's body background */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999; /* Ensure it's on top of everything */
+        opacity: 1;
+        transition: opacity 0.5s ease-out; /* Smooth fade out */
+      }
+
       /* Custom Animations */
       @keyframes modalFadeDown {
         from {
@@ -81,6 +98,13 @@
   </head>
 
   <body class="bg-body">
+    <!-- SPLASH SCREEN -->
+    <div id="splash-screen">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p class="mt-2 text-muted">Loading your shop...</p>
+    </div>
     <!-- NAVBAR -->
     <nav class="navbar bg-dark navbar-dark sticky-top">
       <div class="container-fluid">
@@ -159,14 +183,14 @@
     <!-- PRODUCTS -->
     <div class="container mt-3">
       <div class="row g-3" id="inventory-grid">
-        <div id="loading-state" class="text-center py-4">Loading...</div>
+        <!-- Products will be rendered here -->
       </div>
     </div>
 
     <!-- QUICK CHECKOUT BAR (Visible when items are in cart) -->
     <div
       id="quick-checkout-bar"
-      class="fixed-bottom bg-body border-top shadow-lg p-4"
+      class="fixed-bottom bg-body border-top shadow-lg p-2" 
     >
       <div class="container d-flex align-items-center justify-content-between">
         <div class="me-2">
@@ -179,7 +203,8 @@
         </div>
 
         <div class="d-flex align-items-center gap-2">
-          <div class="btn-group btn-group-sm">
+          <!--make button bigger-->
+          <div class="btn-group btn-group-sm p-3 ">
             <input
               type="radio"
               class="btn-check"
