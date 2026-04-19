@@ -384,7 +384,11 @@ async function showSummary() {
       : `<li class="list-group-item">All stock OK</li>`;
 
     // SHOW MODAL
-    const modal = new bootstrap.Modal(document.getElementById("summaryModal"));
+    const inventoryModal = bootstrap.Modal.getInstance(document.getElementById("inventoryModal"));
+    if (inventoryModal) inventoryModal.hide();
+
+    const modalEl = document.getElementById("summaryModal");
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     modal.show();
   } catch (err) {
     console.error("SUMMARY ERROR DETAILS:", err);
@@ -423,6 +427,10 @@ async function showDetailedSummary() {
     // 3. Total Items Sold (Volume)
     document.getElementById("det-total-qty").innerText = safeSales.length;
 
+    // Hide the basic summary modal first
+    const summaryModal = bootstrap.Modal.getInstance(document.getElementById("summaryModal"));
+    if (summaryModal) summaryModal.hide();
+
     // 4. Rankings (Best & Worst)
     const rankings = await getTopSellingItems();
     
@@ -454,7 +462,8 @@ async function showDetailedSummary() {
     renderTrendChart(safeSales);
 
     // Show Modal
-    const detailModal = new bootstrap.Modal(document.getElementById("detailedSummaryModal"));
+    const detailModalEl = document.getElementById("detailedSummaryModal");
+    const detailModal = bootstrap.Modal.getOrCreateInstance(detailModalEl);
     detailModal.show();
   } catch (err) {
     console.error("DEEP SUMMARY ERROR:", err);
@@ -500,6 +509,11 @@ function renderTrendChart(salesData) {
 // ================= INVENTORY MANAGEMENT =================
 async function openInventoryManager() {
   renderInventoryList();
+  renderPriceList();
+
+  // Close summary if open
+  const summaryModal = bootstrap.Modal.getInstance(document.getElementById("summaryModal"));
+  if (summaryModal) summaryModal.hide();
   
   const select = document.getElementById("new-p-cat-select");
   if (select) {
@@ -550,8 +564,8 @@ function renderInventoryList() {
         <small class="text-muted">Current Stock: <b>${p.stock}</b></small>
       </div>
       <div class="d-flex gap-2" style="width: 160px;">
-        <input type="number" class="form-control form-control-sm" id="stock-input-${p.id}" value="${p.stock}">
-        <button class="btn btn-sm btn-success" onclick="saveStockUpdate('${p.id}', 'stock-input-${p.id}')">Save</button>
+        <input type="number" class="form-control form-control-sm" id="stock-input-${p.id}" value="0" placeholder="Qty to add">
+        <button class="btn btn-sm btn-success" onclick="saveStockUpdate('${p.id}', 'stock-input-${p.id}')">Add</button>
       </div>
     </div>
   `).join("");
@@ -559,12 +573,17 @@ function renderInventoryList() {
 
 async function saveStockUpdate(id, inputId) {
   const input = document.getElementById(inputId);
-  const newStock = parseInt(input.value);
+  const addAmount = parseInt(input.value);
 
-  if (isNaN(newStock) || newStock < 0) {
-    showNotification("Please enter a valid stock number", "warning");
+  if (isNaN(addAmount) || addAmount === 0) {
+    showNotification("Please enter a quantity to add or subtract", "warning");
     return;
   }
+
+  const product = allProducts.find(p => String(p.id) === String(id));
+  if (!product) return;
+
+  const newStock = product.stock + addAmount;
 
   const { error } = await _supabase.from("products").update({ stock: newStock }).eq("id", id);
 
@@ -574,6 +593,47 @@ async function saveStockUpdate(id, inputId) {
     showNotification("Stock updated successfully!", "success");
     await fetchData(); // Refresh global products and main UI
     renderInventoryList(); // Refresh the list in the modal
+  }
+}
+
+function renderPriceList() {
+  const q = document.getElementById("priceSearchInput")?.value.toLowerCase().trim() || "";
+  const list = document.getElementById("price-management-list");
+  
+  const filtered = allProducts.filter(p => p.name.toLowerCase().includes(q));
+
+  list.innerHTML = filtered.map(p => `
+    <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+      <div style="flex: 1;">
+        <h6 class="mb-0">${p.name}</h6>
+        <small class="text-muted">Current Price: <b>${p.price} KES</b></small>
+      </div>
+      <div class="d-flex gap-2" style="width: 180px;">
+        <input type="number" class="form-control form-control-sm" id="price-input-${p.id}" value="${p.price}">
+        <button class="btn btn-sm btn-primary" onclick="savePriceUpdate('${p.id}', 'price-input-${p.id}')">Update</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function savePriceUpdate(id, inputId) {
+  const input = document.getElementById(inputId);
+  const newPrice = parseFloat(input.value);
+
+  if (isNaN(newPrice) || newPrice < 0) {
+    showNotification("Please enter a valid price", "warning");
+    return;
+  }
+
+  const { error } = await _supabase.from("products").update({ price: newPrice }).eq("id", id);
+
+  if (error) {
+    showNotification("Error updating price", "danger");
+  } else {
+    showNotification("Price updated successfully!", "success");
+    await fetchData(); // Refresh global products and main UI
+    renderPriceList(); // Refresh the list in the modal
+    renderInventoryList(); // Keep both lists in sync
   }
 }
 

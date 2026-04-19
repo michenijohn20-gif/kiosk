@@ -20,7 +20,7 @@
         width: 55px;
         height: 55px;
         border-radius: 50%;
-        z-index: 9999;
+        z-index: 1030; /* Below Bootstrap modal backdrop (1040) */
         display: flex;
         align-items: center;
         justify-content: center;
@@ -169,6 +169,9 @@
                 <button class="nav-link active btn-sm px-3" id="manage-tab" data-bs-toggle="pill" data-bs-target="#manage-pane" type="button" role="tab">Update Stock</button>
               </li>
               <li class="nav-item" role="presentation">
+                <button class="nav-link btn-sm px-3" id="price-tab" data-bs-toggle="pill" data-bs-target="#price-pane" type="button" role="tab">Update Prices</button>
+              </li>
+              <li class="nav-item" role="presentation">
                 <button class="nav-link btn-sm px-3" id="add-tab" data-bs-toggle="pill" data-bs-target="#add-pane" type="button" role="tab">Add New Item</button>
               </li>
             </ul>
@@ -178,6 +181,12 @@
               <div class="tab-pane fade show active" id="manage-pane" role="tabpanel">
                 <input class="form-control mb-3" id="inventorySearchInput" placeholder="Search items to update..." oninput="renderInventoryList()" />
                 <div id="inventory-management-list" style="max-height: 400px; overflow-y: auto;"></div>
+              </div>
+
+              <!-- Update Price Tab -->
+              <div class="tab-pane fade" id="price-pane" role="tabpanel">
+                <input class="form-control mb-3" id="priceSearchInput" placeholder="Search items to update price..." oninput="renderPriceList()" />
+                <div id="price-management-list" style="max-height: 400px; overflow-y: auto;"></div>
               </div>
 
               <!-- Add New Product Tab -->
