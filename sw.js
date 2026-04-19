@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pos-upgrade-v1';
+const CACHE_NAME = 'pos-upgrade-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -10,48 +10,62 @@ const ASSETS_TO_CACHE = [
   '/cdn/supabase.js'
 ];
 
-// Install Event: Cache all static assets
+// Install: cache assets and activate immediately without waiting
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('Opened cache');
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE))
   );
+  self.skipWaiting(); // <-- Don't wait for old tabs to close
 });
 
-// Activate Event: Cleanup old caches
+// Activate: delete ALL old caches, then take control of open tabs immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache);
-          }
-        })
-      );
-    })
+    caches.keys().then((cacheNames) =>
+      Promise.all(
+        cacheNames
+          .filter((name) => name !== CACHE_NAME)
+          .map((name) => caches.delete(name))
+      )
+    )
   );
+  self.clients.claim(); // <-- Take over all open tabs right away
 });
 
-// Fetch Event: Network-first approach for Supabase, Cache-first for local assets
+// Fetch: network-first for HTML/JS so updates are picked up immediately,
+//        cache-first for CSS/fonts/icons (change less often)
 self.addEventListener('fetch', (event) => {
-  // Check if the request is for Supabase API
-  if (event.request.url.includes('supabase.co')) {
+  const url = new URL(event.request.url);
+
+  // Always pass Supabase calls straight to the network
+  if (url.hostname.includes('supabase.co')) {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        // If Supabase fetch fails (offline), return null so script.js handles it
-        return null;
-      })
+      fetch(event.request).catch(() => new Response('', { status: 503 }))
     );
     return;
   }
 
-  // For other assets (HTML, CSS, JS), try cache first
+  // Network-first for HTML and JS files
+  if (
+    event.request.destination === 'document' ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.html')
+  ) {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          // Update the cache with the fresh response
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return res;
+        })
+        .catch(() => caches.match(event.request)) // Fall back to cache if offline
+    );
+    return;
+  }
+
+  // Cache-first for everything else (CSS, icons, fonts)
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
+    caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
 });
