@@ -15,8 +15,8 @@ async function fetchData() {
   try {
     // Fetch products and categories separately to avoid relationship errors
     const [prodRes, catRes] = await Promise.all([
-      _supabase.from("products").select("*"),
-      _supabase.from("categories").select("*")
+      _supabase.from("products").select("*").order("name"),
+      _supabase.from("categories").select("*").order("name")
     ]);
 
     if (prodRes.error) throw prodRes.error;
@@ -54,9 +54,9 @@ function renderCategoryPills() {
   const container = document.getElementById("category-pills");
   if (!container) return;
 
-  container.innerHTML = `<button class="btn btn-sm btn-outline-primary active" onclick="filterByCategory('all', this)">All</button>` + 
+  container.innerHTML = `<button class="btn btn-sm btn-outline-primary active" data-category="all" onclick="filterByCategory(this.dataset.category, this)">All</button>` + 
     allCategories.map(c => `
-      <button class="btn btn-sm btn-outline-primary" onclick="filterByCategory('${c.name}', this)">${c.name}</button>
+      <button class="btn btn-sm btn-outline-primary" data-category="${c.name}" onclick="filterByCategory(this.dataset.category, this)">${c.name}</button>
     `).join("");
 }
 
@@ -83,14 +83,12 @@ function handleSearch() {
     const q = document.getElementById("searchInput").value.toLowerCase().trim();
 
     const filtered = allProducts.filter((p) =>
-      p.name.toLowerCase().includes(q),
+      (p.name || "").toLowerCase().includes(q),
     );
 
     renderCards(filtered);
   }, 150);
 }
-console.log("Script loaded");
-console.log("Supabase client initialized:", _supabase);
 
 // ================= RENDER PRODUCTS =================
 function renderCards(products) {
@@ -108,6 +106,7 @@ function renderCards(products) {
   });
 
   grid.innerHTML = Object.keys(grouped)
+    .sort()
     .map(
       (cat) => `
     <div class="col-12 mt-2" id="section-${cat.replace(/\s+/g, '')}">
@@ -128,30 +127,31 @@ function renderCards(products) {
             </div>
             <p class="fw-bold text-primary mb-2">${product.price} KES</p>
             <div class="d-flex justify-content-center align-items-center gap-2 mb-2">
-              <button onclick="changeQty(this, -1)" class="btn btn-sm btn-outline-secondary">-</button>
-              <span class="fw-bold">1</span>
-              <button onclick="changeQty(this, 1)" class="btn btn-sm btn-outline-secondary">+</button>
+              <button data-action="qty-minus" class="btn btn-sm btn-outline-secondary">-</button>
+              <span class="fw-bold qty-display">1</span>
+              <button data-action="qty-plus" class="btn btn-sm btn-outline-secondary">+</button>
             </div>
             <button class="btn btn-primary btn-sm w-100"
-              onclick="addToCart(this, '${product.id}')">
+              data-action="add-to-cart" data-id="${product.id}">
               Add
             </button>
           </div>
         </div>
       </div>
-    `).join("")}`).join("");
+    `).join("")}
+    `).join("");
 
   document.getElementById("total-items-count").innerText =
     `${products.length} Products`;
 }
-console.log("Render function defined");
 // ================= QTY =================
 function changeQty(btn, val) {
-  const span = btn.parentElement.querySelector("span");
-  let currentQty = parseInt(span.innerText);
+  const qtyDisplay = btn.parentElement.querySelector(".qty-display");
+  if (!qtyDisplay) return;
+  let currentQty = parseInt(qtyDisplay.innerText);
   currentQty += val;
   if (currentQty < 1) currentQty = 1;
-  span.innerText = currentQty;
+  qtyDisplay.innerText = currentQty;
 }
 
 // ================= NOTIFICATIONS =================
@@ -160,16 +160,15 @@ function showNotification(message, type = "info") {
   if (existing) existing.remove();
 
   const toast = document.createElement("div");
-  toast.className = `custom-toast alert alert-${type} position-fixed top-0 start-50 translate-middle-x mt-3 shadow-lg`;
+  toast.className = `custom-toast alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3 shadow-lg`;
   toast.style.zIndex = "1060";
   toast.style.minWidth = "250px";
-  toast.innerText = message;
+  toast.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  `;
   
   document.body.appendChild(toast);
-  
-  setTimeout(() => {
-    toast.remove();
-  }, 3000);
 }
 
 // ================= ADD TO CART =================
@@ -177,7 +176,8 @@ function addToCart(btn, productId) {
   const product = allProducts.find(p => String(p.id) === String(productId));
   if (!product) return;
 
-  const qtySpan = btn.closest(".card-body").querySelector(".d-flex span");
+  const qtySpan = btn.closest(".card-body")?.querySelector(".qty-display");
+  if (!qtySpan) return;
   const qty = parseInt(qtySpan.innerText);
 
   if (product.stock <= 0) {
@@ -201,10 +201,8 @@ function addToCart(btn, productId) {
 
   qtySpan.innerText = "1"; // Reset quantity display after adding
   updateCartUI();
+  showNotification(`${product.name} added to cart!`, "success");
 }
-console.log("Add to cart function defined");
-console.log("Initial cart state:", cart);
-console.log("Initial products state:", allProducts);
 
 // ================= REMOVE =================
 function removeFromCart(id) {
@@ -239,10 +237,8 @@ function updateCartUI() {
   
   if (quickTotal) quickTotal.innerText = total.toLocaleString();
   if (quickBar) {
-    // Only show the bar if there are items, otherwise hide to save space
-    count > 0 ? quickBar.classList.remove("d-none") : quickBar.classList.add("d-none");
-    // Add padding to body so the bar doesn't cover the last product row
-    document.body.style.paddingBottom = count > 0 ? "80px" : "0px";
+    quickBar.classList.remove("d-none");
+    document.body.style.paddingBottom = "80px";
   }
 
   renderCartItems();
@@ -269,8 +265,7 @@ function renderCartItems() {
 
       <div>
         <b>${item.price * item.qty} KES</b>
-        <button class="btn btn-sm btn-danger ms-2"
-          onclick="removeFromCart('${item.id}')">−</button>
+        <button class="btn btn-sm btn-danger ms-2" data-action="remove" data-id="${item.id}">−</button>
       </div>
 
     </li>
@@ -285,50 +280,93 @@ function clearCart() {
   updateCartUI();
 }
 
-// ================= CHECKOUT =================
-async function checkout() {
-  if (cart.length === 0) return;
+let lastSale = null;
 
+// ================= CHECKOUT =================
+function checkout() {
+  if (cart.length === 0) return;
+  const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmSaleModal'));
+  modal.show();
+}
+
+async function completeSale() {
+  const checkoutBtns = document.querySelectorAll('[onclick="checkout()"]');
+  checkoutBtns.forEach(btn => btn.disabled = true);
+
+  const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmSaleModal'));
+  if (confirmModal) confirmModal.hide();
+
+  try {
   // Check which payment selector to use (Offcanvas or Quick Bar)
   const isOffcanvasOpen = document.getElementById('cartOffcanvas').classList.contains('show');
   const selector = isOffcanvasOpen ? 'input[name="payment"]:checked' : 'input[name="payment-quick"]:checked';
   
-  const payment = document.querySelector(selector).value;
+  const paymentElement = document.querySelector(selector);
+  const payment = paymentElement ? paymentElement.value : "Cash";
 
-  const totalItems = cart.reduce((s, i) => s + i.qty, 0);
+    for (const item of cart) {
+      const { error: stockErr } = await _supabase
+        .from("products")
+        .update({ stock: item.stock - item.qty })
+        .eq("id", item.id);
+      if (stockErr) throw new Error(`Stock update failed: ${item.name}`);
 
-  if (!confirm(`Sell ${totalItems} items via ${payment}?`)) return;
-
-  for (const item of cart) {
-    await _supabase
-      .from("products")
-      .update({ stock: item.stock - item.qty })
-      .eq("id", item.id);
-
-    await _supabase.from("sales").insert([
-      {
+      const { error: saleErr } = await _supabase.from("sales").insert([{
         product_id: item.id,
         amount_paid: item.price * item.qty,
         payment_method: payment,
-      },
-    ]);
-  }
+      }]);
+      if (saleErr) throw new Error(`Sale record failed: ${item.name}`);
+    }
 
-  // Close the offcanvas on success
-  const cartPanel = document.getElementById('cartOffcanvas');
-  const bsOffcanvas = bootstrap.Offcanvas.getInstance(cartPanel);
+  lastSale = {
+    items: [...cart],
+    total: cart.reduce((s, i) => s + i.price * i.qty, 0),
+    payment: payment
+  };
+
+    const bsOffcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('cartOffcanvas'));
   if (bsOffcanvas) bsOffcanvas.hide();
 
-  alert("Sale complete");
   clearCart();
-  fetchData();
+    await fetchData();
+    showReceiptPopup();
+  } catch (err) {
+    showNotification(err.message, "danger");
+  } finally {
+    checkoutBtns.forEach(btn => btn.disabled = false);
+  }
+}
+
+function showReceiptPopup() {
+  if (!lastSale) return;
+  const details = document.getElementById("receipt-details");
+  if (details) {
+    details.innerText = `${lastSale.total.toLocaleString()} KES paid via ${lastSale.payment}`;
+  }
+  const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('receiptModal'));
+  modal.show();
+}
+
+function shareToWhatsApp() {
+  if (!lastSale) return;
+  let message = `*Receipt*%0A`;
+  lastSale.items.forEach(item => {
+    message += `${item.name} x ${item.qty} = ${(item.price * item.qty).toLocaleString()} KES%0A`;
+  });
+  message += `*Total: ${lastSale.total.toLocaleString()} KES*%0APayment: ${lastSale.payment}`;
+  window.open(`https://wa.me/?text=${message}`, '_blank');
 }
 
 // ================= RANKING =================
 async function getTopSellingItems() {
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
   const { data: sales, error } = await _supabase
     .from("sales")
-    .select("product_id");
+    .select("product_id")
+    .gte("created_at", sixMonthsAgo.toISOString());
 
   if (error) {
     console.error("Error fetching sales ranking:", error);
@@ -352,11 +390,12 @@ async function showSummary() {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const localISO = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString();
 
     const { data: sales, error } = await _supabase
       .from("sales")
       .select("*")
-      .gte("created_at", today.toISOString());
+      .gte("created_at", localISO);
 
     if (error) throw error;
 
@@ -430,15 +469,20 @@ async function showDetailedSummary() {
     const safeSales = sales || [];
 
     // 1. Calculate Average Transaction Value (ATV)
-    const totalRevenue = safeSales.reduce((sum, s) => sum + Number(s.amount_paid), 0);
+    const totalRevenue = safeSales.reduce((sum, s) => sum + Number(s.amount_paid || 0), 0);
     const avgSale = safeSales.length ? (totalRevenue / safeSales.length) : 0;
     document.getElementById("det-avg-sale").innerText = Math.round(avgSale).toLocaleString() + " KES";
 
     // 2. Calculate Peak Hour
-    const hours = safeSales.map(s => new Date(s.created_at).getHours());
-    const peakHour = hours.length ? hours.sort((a,b) =>
-          hours.filter(v => v===a).length - hours.filter(v => v===b).length
-    ).pop() : 0;
+    const hourCounts = (safeSales || []).reduce((acc, s) => {
+      const hr = new Date(s.created_at).getHours();
+      acc[hr] = (acc[hr] || 0) + 1;
+      return acc;
+    }, {});
+    let peakHour = 0, maxCount = -1;
+    for (const hr in hourCounts) {
+      if (hourCounts[hr] > maxCount) { peakHour = hr; maxCount = hourCounts[hr]; }
+    }
     document.getElementById("det-peak-hour").innerText = `${peakHour}:00`;
 
     // 3. Total Items Sold (Volume)
@@ -500,7 +544,7 @@ function renderTrendChart(salesData) {
 
   const dailyTotals = last7Days.map(date => {
     return salesData
-      .filter(s => s.created_at.startsWith(date))
+      .filter(s => new Date(s.created_at).toLocaleDateString('en-CA') === date)
       .reduce((sum, s) => sum + Number(s.amount_paid), 0);
   });
 
@@ -528,6 +572,7 @@ async function openInventoryManager() {
   renderFullInventoryList();
   renderInventoryList();
   renderPriceList();
+  renderSalesLog();
 
   // Suggestions Mapping
   window.categoryPresets = {
@@ -588,7 +633,7 @@ function updateQuickSuggestions() {
   
   container.innerHTML = presets.map(brand => `
     <button type="button" class="btn btn-xs btn-outline-secondary" style="font-size: 0.7rem; padding: 2px 8px;"
-      onclick="applySuggestion('${brand}')">${brand}</button>
+      data-brand="${brand}">${brand}</button>
   `).join("");
 }
 
@@ -602,7 +647,7 @@ function renderFullInventoryList() {
   const q = document.getElementById("viewSearchInput")?.value.toLowerCase().trim() || "";
   const list = document.getElementById("inventory-view-list");
   
-  const filtered = allProducts.filter(p => p.name.toLowerCase().includes(q));
+  const filtered = allProducts.filter(p => (p.name || "").toLowerCase().includes(q));
 
   list.innerHTML = filtered.map(p => {
     const stockClass = p.stock <= 0 ? 'text-danger fw-bold' : p.stock < 5 ? 'text-warning fw-bold' : '';
@@ -617,11 +662,45 @@ function renderFullInventoryList() {
   }).join("");
 }
 
+async function renderSalesLog() {
+  const list = document.getElementById("sales-log-list");
+  if (!list) return;
+
+  list.innerHTML = `<tr><td colspan="4" class="text-center py-3">Fetching records...</td></tr>`;
+
+  const { data: sales, error } = await _supabase
+    .from("sales")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (error) {
+    list.innerHTML = `<tr><td colspan="4" class="text-danger text-center">Error loading logs</td></tr>`;
+    return;
+  }
+
+  list.innerHTML = (sales || []).map(sale => {
+    const product = allProducts.find(p => String(p.id) === String(sale.product_id));
+    const date = new Date(sale.created_at);
+    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+
+    return `
+      <tr>
+        <td><small>${dateStr}, ${timeStr}</small></td>
+        <td><small class="fw-bold">${product ? product.name : 'Unknown Item'}</small></td>
+        <td class="text-end"><small>${Number(sale.amount_paid).toLocaleString()} KES</small></td>
+        <td><small class="badge bg-light text-dark border">${sale.payment_method}</small></td>
+      </tr>
+    `;
+  }).join("");
+}
+
 function renderInventoryList() {
   const q = document.getElementById("inventorySearchInput")?.value.toLowerCase().trim() || "";
   const list = document.getElementById("inventory-management-list");
   
-  const filtered = allProducts.filter(p => p.name.toLowerCase().includes(q));
+  const filtered = allProducts.filter(p => (p.name || "").toLowerCase().includes(q));
 
   list.innerHTML = filtered.map(p => `
     <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
@@ -631,13 +710,13 @@ function renderInventoryList() {
       </div>
       <div class="text-end">
         <div class="btn-group btn-group-sm mb-1">
-          <button class="btn btn-outline-success" onclick="quickStock('${p.id}', 1)">+1</button>
-          <button class="btn btn-outline-success" onclick="quickStock('${p.id}', 6)">+6</button>
-          <button class="btn btn-outline-success" onclick="quickStock('${p.id}', 12)">+12</button>
+          <button class="btn btn-outline-success" data-action="quick-stock" data-id="${p.id}" data-amount="1">+1</button>
+          <button class="btn btn-outline-success" data-action="quick-stock" data-id="${p.id}" data-amount="6">+6</button>
+          <button class="btn btn-outline-success" data-action="quick-stock" data-id="${p.id}" data-amount="12">+12</button>
         </div>
         <div class="d-flex gap-1">
           <input type="number" class="form-control form-control-sm" id="stock-input-${p.id}" value="0" onfocus="this.select()">
-          <button class="btn btn-sm btn-success" onclick="saveStockUpdate('${p.id}', 'stock-input-${p.id}')">Add</button>
+          <button class="btn btn-sm btn-success" data-action="save-stock" data-id="${p.id}">Add</button>
         </div>
       </div>
     </div>
@@ -688,7 +767,7 @@ function renderPriceList() {
   const q = document.getElementById("priceSearchInput")?.value.toLowerCase().trim() || "";
   const list = document.getElementById("price-management-list");
   
-  const filtered = allProducts.filter(p => p.name.toLowerCase().includes(q));
+  const filtered = allProducts.filter(p => (p.name || "").toLowerCase().includes(q));
 
   list.innerHTML = filtered.map(p => `
     <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
@@ -698,7 +777,7 @@ function renderPriceList() {
       </div>
       <div class="d-flex gap-2" style="width: 180px;">
         <input type="number" class="form-control form-control-sm" id="price-input-${p.id}" value="${p.price}">
-        <button class="btn btn-sm btn-primary" onclick="savePriceUpdate('${p.id}', 'price-input-${p.id}')">Update</button>
+        <button class="btn btn-sm btn-primary" data-action="save-price" data-id="${p.id}">Update</button>
       </div>
     </div>
   `).join("");
@@ -775,9 +854,71 @@ function updateThemeIcon(theme) {
   if (btn) btn.innerText = theme === "dark" ? "☀️" : "🌙";
 }
 
+// ================= EVENT LISTENERS =================
+function initEventListeners() {
+  // Static elements
+  document.getElementById("themeToggle")?.addEventListener("click", toggleTheme);
+  document.getElementById("summaryBtn")?.addEventListener("click", showSummary);
+  document.getElementById("clearBtn")?.addEventListener("click", clearCart);
+  document.getElementById("inventoryBtn")?.addEventListener("click", openInventoryManager);
+  document.getElementById("searchInput")?.addEventListener("input", handleSearch);
+  document.getElementById("voiceSearchBtn")?.addEventListener("click", startVoiceSearch);
+  document.getElementById("deepAnalysisBtn")?.addEventListener("click", showDetailedSummary);
+  
+  document.querySelectorAll(".checkout-btn").forEach(btn => {
+    btn.addEventListener("click", checkout);
+  });
+
+  document.getElementById("addProductForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    addNewProduct();
+  });
+
+  // Event Delegation for Dynamic Content
+  document.getElementById("category-pills")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (btn && btn.dataset.category) filterByCategory(btn.dataset.category, btn);
+  });
+
+  document.getElementById("inventory-grid")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const { action, id } = btn.dataset;
+    if (action === "qty-minus") changeQty(btn, -1);
+    else if (action === "qty-plus") changeQty(btn, 1);
+    else if (action === "add-to-cart") addToCart(btn, id);
+  });
+
+  document.getElementById("cart-list")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (btn && btn.dataset.action === "remove") removeFromCart(btn.dataset.id);
+  });
+
+  document.getElementById("inventory-management-list")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const { action, id, amount } = btn.dataset;
+    if (action === "quick-stock") quickStock(id, parseInt(amount));
+    else if (action === "save-stock") saveStockUpdate(id, `stock-input-${id}`);
+  });
+
+  document.getElementById("price-management-list")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (btn && btn.dataset.action === "save-price") {
+      savePriceUpdate(btn.dataset.id, `price-input-${btn.dataset.id}`);
+    }
+  });
+
+  document.getElementById("quick-suggestions")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (btn && btn.dataset.brand) applySuggestion(btn.dataset.brand);
+  });
+}
+
 // ================= INIT =================
 fetchData();
 updateCartUI();
+initEventListeners();
 
 // Initialize Theme
 const savedTheme = localStorage.getItem("theme") || "light";

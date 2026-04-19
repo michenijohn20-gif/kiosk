@@ -54,6 +54,20 @@
         background-color: var(--bs-body-tertiary-bg);
         border: 1px solid var(--bs-border-color-translucent) !important;
       }
+
+      /* Custom Animations */
+      @keyframes modalFadeDown {
+        from { transform: translateY(-30px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+      @keyframes checkPop {
+        0% { transform: scale(0); opacity: 0; }
+        70% { transform: scale(1.2); }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      .animate-fade-down { animation: modalFadeDown 0.4s ease-out; }
+      .animate-check { animation: checkPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
     </style>
   </head>
 
@@ -64,20 +78,42 @@
         <span class="navbar-brand">Mini POS</span>
 
         <div class="d-flex align-items-center gap-2">
-          <button class="btn btn-outline-light btn-sm" id="themeToggle" onclick="toggleTheme()">🌙</button>
+          <button
+            class="btn btn-outline-light btn-sm"
+            id="themeToggle"
+            onclick="toggleTheme()"
+          >
+            🌙
+          </button>
           <span class="badge bg-secondary" id="total-items-count">
             0 Products
           </span>
-          <button class="btn btn-primary btn-sm position-relative" data-bs-toggle="offcanvas" data-bs-target="#cartOffcanvas">
-            🛒 Cart <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="cart-badge">0</span>
+          <button
+            class="btn btn-primary btn-sm position-relative"
+            data-bs-toggle="offcanvas"
+            data-bs-target="#cartOffcanvas"
+          >
+            🛒 Cart
+            <span
+              class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+              id="cart-badge"
+              >0</span
+            >
           </button>
         </div>
       </div>
     </nav>
 
     <!-- CATEGORY QUICK-FILTER (Sticky) -->
-    <div class="bg-body border-bottom sticky-top" style="top: 56px; z-index: 1020;">
-      <div class="container-fluid py-2 d-flex gap-2 overflow-auto no-scrollbar" id="category-pills" style="white-space: nowrap;">
+    <div
+      class="bg-body border-bottom sticky-top"
+      style="top: 56px; z-index: 1020"
+    >
+      <div
+        class="container-fluid py-2 d-flex gap-2 overflow-auto no-scrollbar"
+        id="category-pills"
+        style="white-space: nowrap"
+      >
         <!-- Pills injected here -->
       </div>
     </div>
@@ -87,7 +123,9 @@
       id="summaryBtn"
       onclick="showSummary()"
       class="btn btn-primary floating-btn"
-    >📊</button>
+    >
+      📊
+    </button>
 
     <button
       id="clearBtn"
@@ -101,7 +139,9 @@
       id="inventoryBtn"
       onclick="openInventoryManager()"
       class="btn btn-success floating-btn"
-    >📦</button>
+    >
+      📦
+    </button>
 
     <!-- SEARCH -->
     <div class="container mt-3">
@@ -114,29 +154,52 @@
     </div>
 
     <!-- PRODUCTS -->
-      <div class="container mt-3">
-        <div class="row g-3" id="inventory-grid">
-          <div id="loading-state" class="text-center py-4">Loading...</div>
-        </div>
+    <div class="container mt-3">
+      <div class="row g-3" id="inventory-grid">
+        <div id="loading-state" class="text-center py-4">Loading...</div>
       </div>
+    </div>
 
     <!-- QUICK CHECKOUT BAR (Visible when items are in cart) -->
-    <div id="quick-checkout-bar" class="fixed-bottom bg-body border-top shadow-lg p-2 d-none">
+    <div
+      id="quick-checkout-bar"
+      class="fixed-bottom bg-body border-top shadow-lg p-2"
+    >
       <div class="container d-flex align-items-center justify-content-between">
         <div class="me-2">
-          <small class="text-muted d-block" style="font-size: 0.7rem;">TOTAL</small>
-          <strong class="text-primary"><span id="quick-total-price">0</span> KES</strong>
+          <small class="text-muted d-block" style="font-size: 0.7rem"
+            >TOTAL</small
+          >
+          <strong class="text-primary"
+            ><span id="quick-total-price">0</span> KES</strong
+          >
         </div>
 
         <div class="d-flex align-items-center gap-2">
           <div class="btn-group btn-group-sm">
-            <input type="radio" class="btn-check" name="payment-quick" value="Cash" id="cash-q" checked />
+            <input
+              type="radio"
+              class="btn-check"
+              name="payment-quick"
+              value="Cash"
+              id="cash-q"
+              checked
+            />
             <label class="btn btn-outline-secondary" for="cash-q">Cash</label>
 
-            <input type="radio" class="btn-check" name="payment-quick" value="M-Pesa" id="mpesa-q" />
+            <input
+              type="radio"
+              class="btn-check"
+              name="payment-quick"
+              value="M-Pesa"
+              id="mpesa-q"
+            />
             <label class="btn btn-outline-success" for="mpesa-q">M-Pesa</label>
           </div>
-          <button class="btn btn-primary btn-sm px-3 fw-bold" onclick="checkout()">
+          <button
+            class="btn btn-primary btn-sm px-3 fw-bold"
+            onclick="checkout()"
+          >
             Sell
           </button>
         </div>
@@ -147,11 +210,15 @@
     <div class="offcanvas offcanvas-end" tabindex="-1" id="cartOffcanvas">
       <div class="offcanvas-header bg-dark text-white">
         <h5 class="offcanvas-title">Your Cart</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+        <button
+          type="button"
+          class="btn-close btn-close-white"
+          data-bs-dismiss="offcanvas"
+        ></button>
       </div>
       <div class="offcanvas-body">
         <ul class="list-group mb-3" id="cart-list"></ul>
-        
+
         <div class="border-top pt-3">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <div>
@@ -161,10 +228,23 @@
           </div>
 
           <div class="btn-group w-100 mb-3">
-            <input type="radio" class="btn-check" name="payment" value="Cash" id="cash" checked />
+            <input
+              type="radio"
+              class="btn-check"
+              name="payment"
+              value="Cash"
+              id="cash"
+              checked
+            />
             <label class="btn btn-outline-secondary" for="cash">Cash</label>
 
-            <input type="radio" class="btn-check" name="payment" value="M-Pesa" id="mpesa" />
+            <input
+              type="radio"
+              class="btn-check"
+              name="payment"
+              value="M-Pesa"
+              id="mpesa"
+            />
             <label class="btn btn-outline-success" for="mpesa">M-Pesa</label>
           </div>
 
@@ -181,30 +261,85 @@
         <div class="modal-content">
           <div class="modal-header bg-success text-white">
             <h5 class="modal-title">Inventory Management</h5>
-            <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <button
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
           </div>
           <div class="modal-body">
             <!-- Sub-navigation -->
-            <ul class="nav nav-pills mb-3 justify-content-center" id="inventoryTabs" role="tablist">
+            <ul
+              class="nav nav-pills mb-3 justify-content-center"
+              id="inventoryTabs"
+              role="tablist"
+            >
               <li class="nav-item" role="presentation">
-                <button class="nav-link active btn-sm px-3" id="view-tab" data-bs-toggle="pill" data-bs-target="#view-pane" type="button" role="tab">Overview</button>
+                <button
+                  class="nav-link active btn-sm px-3"
+                  id="view-tab"
+                  data-bs-toggle="pill"
+                  data-bs-target="#view-pane"
+                  type="button"
+                  role="tab"
+                >
+                  Overview
+                </button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link btn-sm px-3" id="manage-tab" data-bs-toggle="pill" data-bs-target="#manage-pane" type="button" role="tab">Update Stock</button>
+                <button
+                  class="nav-link btn-sm px-3"
+                  id="manage-tab"
+                  data-bs-toggle="pill"
+                  data-bs-target="#manage-pane"
+                  type="button"
+                  role="tab"
+                >
+                  Update Stock
+                </button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link btn-sm px-3" id="price-tab" data-bs-toggle="pill" data-bs-target="#price-pane" type="button" role="tab">Update Prices</button>
+                <button
+                  class="nav-link btn-sm px-3"
+                  id="price-tab"
+                  data-bs-toggle="pill"
+                  data-bs-target="#price-pane"
+                  type="button"
+                  role="tab"
+                >
+                  Update Prices
+                </button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link btn-sm px-3" id="add-tab" data-bs-toggle="pill" data-bs-target="#add-pane" type="button" role="tab">Add New Item</button>
+                <button
+                  class="nav-link btn-sm px-3"
+                  id="add-tab"
+                  data-bs-toggle="pill"
+                  data-bs-target="#add-pane"
+                  type="button"
+                  role="tab"
+                >
+                  Add New Item
+                </button>
               </li>
             </ul>
 
             <div class="tab-content">
               <!-- View Inventory Overview -->
-              <div class="tab-pane fade show active" id="view-pane" role="tabpanel">
-                <input class="form-control mb-3" id="viewSearchInput" placeholder="Filter inventory..." oninput="renderFullInventoryList()" />
-                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+              <div
+                class="tab-pane fade show active"
+                id="view-pane"
+                role="tabpanel"
+              >
+                <input
+                  class="form-control mb-3"
+                  id="viewSearchInput"
+                  placeholder="Filter inventory..."
+                  oninput="renderFullInventoryList()"
+                />
+                <div
+                  class="table-responsive"
+                  style="max-height: 400px; overflow-y: auto"
+                >
                   <table class="table table-sm table-hover border">
                     <thead class="table-secondary sticky-top">
                       <tr>
@@ -221,33 +356,91 @@
 
               <!-- Update Stock Tab -->
               <div class="tab-pane fade" id="manage-pane" role="tabpanel">
-                <input class="form-control mb-3" id="inventorySearchInput" placeholder="Search items to update..." oninput="renderInventoryList()" />
-                <div id="inventory-management-list" style="max-height: 400px; overflow-y: auto;"></div>
+                <input
+                  class="form-control mb-3"
+                  id="inventorySearchInput"
+                  placeholder="Search items to update..."
+                  oninput="renderInventoryList()"
+                />
+                <div
+                  id="inventory-management-list"
+                  style="max-height: 400px; overflow-y: auto"
+                ></div>
               </div>
 
               <!-- Update Price Tab -->
               <div class="tab-pane fade" id="price-pane" role="tabpanel">
-                <input class="form-control mb-3" id="priceSearchInput" placeholder="Search items to update price..." oninput="renderPriceList()" />
-                <div id="price-management-list" style="max-height: 400px; overflow-y: auto;"></div>
+                <input
+                  class="form-control mb-3"
+                  id="priceSearchInput"
+                  placeholder="Search items to update price..."
+                  oninput="renderPriceList()"
+                />
+                <div
+                  id="price-management-list"
+                  style="max-height: 400px; overflow-y: auto"
+                ></div>
               </div>
 
               <!-- Add New Product Tab -->
               <div class="tab-pane fade" id="add-pane" role="tabpanel">
-                <form id="addProductForm" onsubmit="event.preventDefault(); addNewProduct();">
+                <form
+                  id="addProductForm"
+                  onsubmit="
+                    event.preventDefault();
+                    addNewProduct();
+                  "
+                >
                   <div class="mb-2">
                     <label class="form-label small fw-bold">Product Name</label>
-                    <input type="text" class="form-control" id="new-p-name" placeholder="e.g. Fresh Milk 500ml" required>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="new-p-name"
+                      placeholder="e.g. Fresh Milk 500ml"
+                      required
+                    />
                   </div>
-                  <div id="quick-suggestions" class="mb-3 d-flex flex-wrap gap-1"></div>
+                  <div
+                    id="quick-suggestions"
+                    class="mb-3 d-flex flex-wrap gap-1"
+                  ></div>
                   <div class="mb-2">
-                    <label class="form-label small fw-bold">Select Category</label>
-                    <select class="form-select" id="new-p-cat-select" required onchange="updateQuickSuggestions()"></select>
+                    <label class="form-label small fw-bold"
+                      >Select Category</label
+                    >
+                    <select
+                      class="form-select"
+                      id="new-p-cat-select"
+                      required
+                      onchange="updateQuickSuggestions()"
+                    ></select>
                   </div>
                   <div class="row g-2 mb-3">
-                    <div class="col-7"><label class="form-label small fw-bold">Price (KES)</label><input type="number" class="form-control" id="new-p-price" required></div>
-                    <div class="col-5"><label class="form-label small fw-bold">Initial Stock</label><input type="number" class="form-control" id="new-p-stock" value="0" required></div>
+                    <div class="col-7">
+                      <label class="form-label small fw-bold">Price (KES)</label
+                      ><input
+                        type="number"
+                        class="form-control"
+                        id="new-p-price"
+                        required
+                      />
+                    </div>
+                    <div class="col-5">
+                      <label class="form-label small fw-bold"
+                        >Initial Stock</label
+                      ><input
+                        type="number"
+                        class="form-control"
+                        id="new-p-stock"
+                        value="0"
+                        required
+                      />
+                    </div>
                   </div>
-                  <button type="submit" class="btn btn-success w-100">Add to Inventory</button>
+                  <button type="submit" class="btn btn-success w-100">
+                    Add to Inventory
+                  </button>
                 </form>
               </div>
             </div>
@@ -289,7 +482,11 @@
             <ul class="list-group" id="low-stock-list"></ul>
 
             <div class="mt-4 border-top pt-3 text-center">
-              <button class="btn btn-outline-primary w-100" onclick="showDetailedSummary()">
+              <button
+                id="deepAnalysisBtn"
+                class="btn btn-outline-primary w-100"
+                onclick="showDetailedSummary()"
+              >
                 📈 View Deep Analysis
               </button>
             </div>
@@ -304,7 +501,10 @@
         <div class="modal-content">
           <div class="modal-header bg-primary text-white">
             <h5 class="modal-title">Business Intelligence Report</h5>
-            <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            <button
+              class="btn-close btn-close-white"
+              data-bs-dismiss="modal"
+            ></button>
           </div>
           <div class="modal-body">
             <div class="row g-3 mb-4">
@@ -331,16 +531,78 @@
             <div class="row mb-4">
               <div class="col-md-6">
                 <h6 class="fw-bold text-success">🏆 Best Sellers</h6>
-                <ul class="list-group list-group-flush border rounded" id="top-sellers-list"></ul>
+                <ul
+                  class="list-group list-group-flush border rounded"
+                  id="top-sellers-list"
+                ></ul>
               </div>
               <div class="col-md-6">
                 <h6 class="fw-bold text-muted">🐌 Worst Sellers</h6>
-                <ul class="list-group list-group-flush border rounded" id="worst-sellers-list"></ul>
+                <ul
+                  class="list-group list-group-flush border rounded"
+                  id="worst-sellers-list"
+                ></ul>
               </div>
             </div>
 
             <h6 class="fw-bold">Sales Trend (Last 7 Days)</h6>
             <canvas id="salesTrendChart" height="150"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!--confirm sale modal-->
+    <div class="modal fade" id="confirmSaleModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered animate-fade-down">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Confirm Sale</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <p>Are you sure you want to complete this sale?</p>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              onclick="completeSale()"
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RECEIPT MODAL -->
+    <div class="modal fade" id="receiptModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+          <div class="modal-header border-0 pb-0">
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+        <div class="modal-body text-center pt-0 animate-fade-down">
+          <div class="display-1 text-success mb-3 animate-check">✓</div>
+            <h5 class="mb-3">Sale Complete</h5>
+            <p id="receipt-details" class="text-muted small mb-4"></p>
+            <!-- <button class="btn btn-success w-100" onclick="shareToWhatsApp()">Share to WhatsApp</button> -->
           </div>
         </div>
       </div>
