@@ -19,6 +19,7 @@ function loadFromCache() {
   if (cachedProducts && cachedCategories) {
     allProducts = JSON.parse(cachedProducts);
     allCategories = JSON.parse(cachedCategories);
+    applyBestSellerSorting(); // Apply sorting to cached products
     renderCategoryPills();
     renderCards(allProducts);
     return true;
@@ -62,6 +63,17 @@ async function fetchData() {
       ),
     }));
     localStorage.setItem("allProducts", JSON.stringify(allProducts));
+
+    // Fetch sales data for best-seller sorting
+    const { data: salesData, error: salesError } = await fetchWithTimeout(_supabase.from("sales").select("product_id"));
+    if (!salesError) {
+      localStorage.setItem("allSales", JSON.stringify(salesData));
+    } else {
+      console.warn("Could not fetch fresh sales data. Attempting to load from cache.", salesError);
+    }
+
+    // Apply best seller sorting using available sales data (fresh or cached)
+    applyBestSellerSorting();
 
     // Silently update UI with fresh server data
     renderCategoryPills();
@@ -186,9 +198,9 @@ function renderCards(products) {
             </div>
             <p class="fw-bold text-primary mb-2">${product.price} KES</p>
             <div class="d-flex justify-content-center align-items-center gap-2 mb-2">
-              <button data-action="qty-minus" class="btn btn-sm btn-outline-secondary">-</button>
+              <button data-action="qty-minus" data-id="${product.id}" class="btn btn-sm btn-outline-secondary">-</button>
               <span class="fw-bold qty-display">1</span>
-              <button data-action="qty-plus" class="btn btn-sm btn-outline-secondary">+</button>
+              <button data-action="qty-plus" data-id="${product.id}" class="btn btn-sm btn-outline-secondary">+</button>
             </div>
             <button class="btn btn-primary btn-sm w-100"
               data-action="add-to-cart" data-id="${product.id}">
@@ -206,16 +218,33 @@ function renderCards(products) {
   document.getElementById("total-items-count").innerText =
     `${products.length} Products`;
 }
-
 // ================= QTY =================
-function changeQty(btn, val) {
+function changeQty(btn, val, productId) {
   const qtyDisplay = btn.parentElement.querySelector(".qty-display");
   if (!qtyDisplay) return;
+
+  const product = allProducts.find((p) => String(p.id) === String(productId));
   let currentQty = parseInt(qtyDisplay.innerText);
+  
+  // Check for stock limit
+  if (val > 0 && product && currentQty >= product.stock) {
+    showNotification(`Only ${product.stock} items in stock!`, "warning");
+    //disable the plus button if stock limit reached
+    const plusBtn = btn.parentElement.querySelector('button[data-action="qty-plus"]');
+    if (plusBtn) plusBtn.disabled = true;
+    return;
+
+  } else if (val < 0) {
+    //enable the plus button if user is reducing quantity
+    const plusBtn = btn.parentElement.querySelector('button[data-action="qty-plus"]');
+    if (plusBtn) plusBtn.disabled = false;
+  }
+
   currentQty += val;
   if (currentQty < 1) currentQty = 1;
   qtyDisplay.innerText = currentQty;
 }
+
 
 // ================= NOTIFICATIONS =================
 function showNotification(message, type = "info") {
@@ -250,7 +279,12 @@ function addToCart(btn, productId) {
   }
 
   if (qty > product.stock) {
-    showNotification(`Only ${product.stock} items left in stock!`);
+    showNotification(`Only ${product.stock} of ${product.name} are in stock!`);
+    return;
+  }
+
+  if (qty <= 0) {
+    showNotification(`Please select a valid quantity for ${product.name}`);
     return;
   }
 
@@ -330,6 +364,27 @@ function renderCartItems() {
 function clearCart() {
   cart = [];
   updateCartUI();
+}
+
+// ================= BEST SELLER SORTING =================
+function applyBestSellerSorting() {
+  let salesToConsider = [];
+  try {
+    salesToConsider = JSON.parse(localStorage.getItem("allSales") || "[]");
+  } catch (e) {
+    console.error("Error parsing cached sales data for sorting:", e);
+  }
+
+  const salesCounts = salesToConsider.reduce((acc, sale) => {
+    acc[sale.product_id] = (acc[sale.product_id] || 0) + 1;
+    return acc;
+  }, {});
+
+  allProducts.sort((a, b) => {
+    const salesA = salesCounts[a.id] || 0;
+    const salesB = salesCounts[b.id] || 0;
+    return salesB - salesA || a.name.localeCompare(b.name); // Sort by sales (desc), then name (asc)
+  });
 }
 
 // ================= OFFLINE QUEUE =================
@@ -982,9 +1037,10 @@ function initEventListeners() {
   document.getElementById("inventory-grid").addEventListener("click", (e) => {
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
+
     const action = btn.dataset.action;
-    if (action === "qty-minus") changeQty(btn, -1);
-    else if (action === "qty-plus") changeQty(btn, 1);
+    if (action === "qty-minus") changeQty(btn, -1, btn.dataset.id);
+    else if (action === "qty-plus") changeQty(btn, 1, btn.dataset.id);
     else if (action === "add-to-cart") addToCart(btn, btn.dataset.id);
   });
 
