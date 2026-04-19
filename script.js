@@ -512,6 +512,15 @@ async function openInventoryManager() {
   renderInventoryList();
   renderPriceList();
 
+  // Suggestions Mapping
+  window.categoryPresets = {
+    "sodas": ["Coca-Cola", "Fanta", "Sprite", "Pepsi", "Krest", "Stoney"],
+    "soda": ["Coca-Cola", "Fanta", "Sprite", "Pepsi", "Krest", "Stoney"],
+    "juices": ["Minute Maid", "Del Monte", "Pick N Peel", "Ceres", "Afia"],
+    "juice": ["Minute Maid", "Del Monte", "Pick N Peel", "Ceres", "Afia"],
+    "water": ["Dasani", "Keringet", "Aquafina", "Quench"]
+  };
+
   // Close summary if open
   const summaryModal = bootstrap.Modal.getInstance(document.getElementById("summaryModal"));
   if (summaryModal) summaryModal.hide();
@@ -545,11 +554,31 @@ async function openInventoryManager() {
         ).join("")}
       `;
     }
+    updateQuickSuggestions();
   }
 
   const modalEl = document.getElementById("inventoryModal");
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   modal.show();
+}
+
+function updateQuickSuggestions() {
+  const select = document.getElementById("new-p-cat-select");
+  const container = document.getElementById("quick-suggestions");
+  const selectedText = select.options[select.selectedIndex]?.text?.toLowerCase().trim();
+  
+  const presets = window.categoryPresets[selectedText] || [];
+  
+  container.innerHTML = presets.map(brand => `
+    <button type="button" class="btn btn-xs btn-outline-secondary" style="font-size: 0.7rem; padding: 2px 8px;"
+      onclick="applySuggestion('${brand}')">${brand}</button>
+  `).join("");
+}
+
+function applySuggestion(brand) {
+  const nameInput = document.getElementById("new-p-name");
+  nameInput.value = brand + " ";
+  nameInput.focus();
 }
 
 function renderFullInventoryList() {
@@ -678,10 +707,10 @@ async function addNewProduct() {
   } else {
     showNotification(`${name} added successfully!`, "success");
     
-    // Reset the form
-    document.getElementById("addProductForm").reset();
+    // Speed optimization: Only clear the Name and focus back
+    document.getElementById("new-p-name").value = "";
+    document.getElementById("new-p-name").focus();
     
-    // Switch back to management tab to see the new item
     const manageTabTrigger = document.querySelector('#manage-tab');
     bootstrap.Tab.getOrCreateInstance(manageTabTrigger).show();
     

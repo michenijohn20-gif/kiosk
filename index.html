@@ -217,10 +217,10 @@
                     <label class="form-label small fw-bold">Product Name</label>
                     <input type="text" class="form-control" id="new-p-name" placeholder="e.g. Fresh Milk 500ml" required>
                   </div>
+                  <div id="quick-suggestions" class="mb-3 d-flex flex-wrap gap-1"></div>
                   <div class="mb-2">
                     <label class="form-label small fw-bold">Select Category</label>
-                    <!-- Category Disabled for now -->
-                    <select class="form-select" id="new-p-cat-select" required disabled></select>
+                    <select class="form-select" id="new-p-cat-select" required onchange="updateQuickSuggestions()"></select>
                   </div>
                   <div class="row g-2 mb-3">
                     <div class="col-7"><label class="form-label small fw-bold">Price (KES)</label><input type="number" class="form-control" id="new-p-price" required></div>
