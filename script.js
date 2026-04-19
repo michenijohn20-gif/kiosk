@@ -304,7 +304,6 @@ async function completeSale() {
   const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmSaleModal'));
   if (confirmModal) confirmModal.hide();
 
-  try {
   // Check which payment selector to use (Offcanvas or Quick Bar)
   const isOffcanvasOpen = document.getElementById('cartOffcanvas').classList.contains('show');
   const selector = isOffcanvasOpen ? 'input[name="payment"]:checked' : 'input[name="payment-quick"]:checked';
@@ -312,6 +311,37 @@ async function completeSale() {
   const paymentElement = document.querySelector(selector);
   const payment = paymentElement ? paymentElement.value : "Cash";
 
+  const saleData = {
+    items: [...cart],
+    total: cart.reduce((s, i) => s + i.price * i.qty, 0),
+    payment: payment,
+    timestamp: new Date().toISOString()
+  };
+
+  // Handle Offline Scenario
+  if (!navigator.onLine) {
+    try {
+      const pending = JSON.parse(localStorage.getItem("pendingSales") || "[]");
+      pending.push(saleData);
+      localStorage.setItem("pendingSales", JSON.stringify(pending));
+
+      showNotification("Offline: Sale saved locally. Will sync when online.", "warning");
+
+      lastSale = saleData;
+      const bsOffcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('cartOffcanvas'));
+      if (bsOffcanvas) bsOffcanvas.hide();
+
+      clearCart();
+      showReceiptPopup();
+    } catch (err) {
+      showNotification("Failed to save sale locally.", "danger");
+    } finally {
+      checkoutBtns.forEach(btn => btn.disabled = false);
+    }
+    return;
+  }
+
+  try {
     for (const item of cart) {
       const { error: stockErr } = await _supabase
         .from("products")
@@ -323,15 +353,12 @@ async function completeSale() {
         product_id: item.id,
         amount_paid: item.price * item.qty,
         payment_method: payment,
+        created_at: saleData.timestamp
       }]);
       if (saleErr) throw new Error(`Sale record failed: ${item.name}`);
     }
 
-  lastSale = {
-    items: [...cart],
-    total: cart.reduce((s, i) => s + i.price * i.qty, 0),
-    payment: payment
-  };
+    lastSale = saleData;
 
     const bsOffcanvas = bootstrap.Offcanvas.getInstance(document.getElementById('cartOffcanvas'));
   if (bsOffcanvas) bsOffcanvas.hide();
@@ -343,6 +370,47 @@ async function completeSale() {
     showNotification(err.message, "danger");
   } finally {
     checkoutBtns.forEach(btn => btn.disabled = false);
+  }
+}
+
+// ================= OFFLINE SYNC =================
+async function syncOfflineSales() {
+  if (!navigator.onLine) return;
+  
+  let pending = JSON.parse(localStorage.getItem("pendingSales") || "[]");
+  if (pending.length === 0) return;
+
+  showNotification(`Syncing ${pending.length} offline sales...`, "info");
+  const successfulSyncs = [];
+
+  for (const sale of pending) {
+    try {
+      for (const item of sale.items) {
+        const { error: stockErr } = await _supabase.from("products")
+          .update({ stock: item.stock - item.qty }).eq("id", item.id);
+        if (stockErr) throw stockErr;
+
+        const { error: saleErr } = await _supabase.from("sales").insert([{
+          product_id: item.id,
+          amount_paid: item.price * item.qty,
+          payment_method: sale.payment,
+          created_at: sale.timestamp
+        }]);
+        if (saleErr) throw saleErr;
+      }
+      successfulSyncs.push(sale);
+    } catch (err) {
+      console.error("Sync failed for a sale:", err);
+      break; // Stop loop to maintain order if a network error occurs
+    }
+  }
+
+  const updatedPending = pending.filter(s => !successfulSyncs.includes(s));
+  localStorage.setItem("pendingSales", JSON.stringify(updatedPending));
+
+  if (successfulSyncs.length > 0) {
+    showNotification(`${successfulSyncs.length} sales synced successfully!`, "success");
+    await fetchData();
   }
 }
 
@@ -905,9 +973,14 @@ function initEventListeners() {
     const btn = e.target.closest("button");
     if (btn && btn.dataset.brand) applySuggestion(btn.dataset.brand);
   });
+
+  window.addEventListener('online', syncOfflineSales);
 }
 
 // ================= INIT =================
 fetchData();
 updateCartUI();
 initEventListeners();
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
