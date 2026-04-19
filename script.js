@@ -568,15 +568,12 @@ async function getTopSellingItems() {
 async function showSummary() {
   try {
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const localISO = new Date(
-      today.getTime() - today.getTimezoneOffset() * 60000,
-    ).toISOString();
+    today.setHours(0, 0, 0, 0); // Midnight local time
 
     const { data: sales, error } = await _supabase
       .from("sales")
       .select("*")
-      .gte("created_at", localISO);
+      .gte("created_at", today.toISOString()); // Database uses UTC, so we query relative to local midnight
 
     if (error) throw error;
 
@@ -632,12 +629,14 @@ async function showSummary() {
 async function showDetailedSummary() {
   try {
     const monthAgo = new Date();
+    monthAgo.setHours(0, 0, 0, 0);
     monthAgo.setDate(monthAgo.getDate() - 30);
 
     const { data: sales, error } = await _supabase
       .from("sales")
       .select("*")
-      .gte("created_at", monthAgo.toISOString());
+      .gte("created_at", monthAgo.toISOString())
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
 
@@ -693,6 +692,25 @@ async function showDetailedSummary() {
 
     renderTrendChart(safeSales);
 
+    // Render transactions log for deep analysis
+    const deepLog = document.getElementById("deep-sales-log");
+    if (deepLog) {
+      deepLog.innerHTML = safeSales.length 
+        ? safeSales.slice(0, 50).map(sale => {
+            const product = allProducts.find(p => String(p.id) === String(sale.product_id));
+            const date = new Date(sale.created_at);
+            const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+            return `
+              <tr>
+                <td><small class="text-muted">${dateStr}, ${timeStr}</small></td>
+                <td><small class="fw-bold">${product ? product.name : 'Unknown Item'}</small></td>
+                <td class="text-end"><small>${Number(sale.amount_paid).toLocaleString()} KES</small></td>
+              </tr>`;
+          }).join("")
+        : `<tr><td colspan="3" class="text-center text-muted py-3">No transactions found in the last 30 days</td></tr>`;
+    }
+
     const detailModal = bootstrap.Modal.getOrCreateInstance(
       document.getElementById("detailedSummaryModal")
     );
@@ -709,12 +727,12 @@ function renderTrendChart(salesData) {
   const last7Days = [...Array(7)].map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    return d.toISOString().split("T")[0];
+    return d.toLocaleDateString("en-CA"); // Gets YYYY-MM-DD in local (Nairobi) time
   }).reverse();
 
   const dailyTotals = last7Days.map((date) =>
     salesData
-      .filter((s) => new Date(s.created_at).toLocaleDateString("en-CA") === date)
+      .filter((s) => new Date(s.created_at).toLocaleDateString("en-CA") === date) // Filter using local date strings
       .reduce((sum, s) => sum + Number(s.amount_paid), 0)
   );
 
