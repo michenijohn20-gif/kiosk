@@ -1050,21 +1050,37 @@ async function addNewProduct() {
     renderInventoryList();
   }
 }
+
+function updateOnlineStatusUI() {
+  const statusEl = document.getElementById("connection-status");
+  if (!statusEl) return;
+
+  if (navigator.onLine) {
+    statusEl.innerText = "Online";
+    statusEl.classList.replace("bg-danger", "bg-success");
+  } else {
+    statusEl.innerText = "Offline";
+    statusEl.classList.replace("bg-success", "bg-danger");
+  }
+}
+
 function notifyIfNoInternet() {
+  updateOnlineStatusUI();
   if (!navigator.onLine) {
     showNotification(
       "You are currently offline. Some features may not work.",
       "warning",
     );
   }
-  return;
 }
 
 window.addEventListener("load", notifyIfNoInternet);
-window.addEventListener("offline", () =>
-  showNotification("You lost internet connection!", "danger"),
-);
+window.addEventListener("offline", () => {
+  updateOnlineStatusUI();
+  showNotification("You lost internet connection!", "danger");
+});
 window.addEventListener("online", () => {
+  updateOnlineStatusUI();
   showNotification("Back online! Syncing queued sales...", "success");
   syncOfflineQueue();
 });
