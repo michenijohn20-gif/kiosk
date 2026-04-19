@@ -788,6 +788,10 @@ async function addNewProduct() {
     renderInventoryList();
   }
 }
+function notifyIfNoInternet() {
+  if (!navigator.onLine) {
+    showNotification("You are currently offline. Some features may not work.", "warning");
+  }
 
 // ================= THEME TOGGLE =================
 function toggleTheme() {
