@@ -65,6 +65,14 @@ function renderCards(products) {
 
             <h6>${product.name}</h6>
             <small class="text-muted">${product.category}</small>
+            
+            <div class="mb-2">
+              ${product.stock <= 0 
+                ? '<span class="badge bg-danger">Out of stock</span>' 
+                : product.stock < 5 
+                ? '<span class="badge bg-warning text-dark">Few in stock</span>' 
+                : '<span class="badge bg-success">In stock</span>'}
+            </div>
 
             <p class="fw-bold text-primary">${product.price} KES</p>
 
@@ -102,10 +110,35 @@ function changeQty(btn, val) {
   span.innerText = currentQty;
 }
 
+// ================= NOTIFICATIONS =================
+function showNotification(message, type = "danger") {
+  const toast = document.createElement("div");
+  toast.className = `alert alert-${type} position-fixed top-0 start-50 translate-middle-x mt-3 shadow-lg`;
+  toast.style.zIndex = "1060";
+  toast.style.minWidth = "250px";
+  toast.innerText = message;
+  
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.remove();
+  }, 3000);
+}
+
 // ================= ADD TO CART =================
 function addToCart(btn, product) {
   const qtySpan = btn.closest(".card-body").querySelector(".d-flex span");
   const qty = parseInt(qtySpan.innerText);
+
+  if (product.stock <= 0) {
+    showNotification("This item is currently out of stock!");
+    return;
+  }
+
+  if (qty > product.stock) {
+    showNotification(`Only ${product.stock} items left in stock!`);
+    return;
+  }
 
   const id = String(product.id);
   const existing = cart.find((i) => String(i.id) === id);
