@@ -169,6 +169,14 @@ function showNotification(message, type = "info") {
   `;
   
   document.body.appendChild(toast);
+
+  // Auto-dismiss after 3 seconds with a smooth fade-out
+  setTimeout(() => {
+    if (document.body.contains(toast)) {
+      toast.classList.remove("show"); // Triggers Bootstrap transition
+      setTimeout(() => toast.remove(), 150); // Matches transition duration
+    }
+  }, 1000);
 }
 
 // ================= ADD TO CART =================
@@ -348,7 +356,7 @@ function showReceiptPopup() {
   modal.show();
 }
 
-function shareToWhatsApp() {
+async function shareToWhatsApp() {
   if (!lastSale) return;
   let message = `*Receipt*%0A`;
   lastSale.items.forEach(item => {
@@ -532,7 +540,7 @@ async function showDetailedSummary() {
   }
 }
 
-function renderTrendChart(salesData) {
+async function renderTrendChart(salesData) {
   const ctx = document.getElementById('salesTrendChart').getContext('2d');
   
   // Group sales by day
@@ -737,6 +745,7 @@ async function quickStock(id, amount) {
     renderFullInventoryList();
   }
 }
+
 
 async function saveStockUpdate(id, inputId) {
   const input = document.getElementById(inputId);
