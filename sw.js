@@ -4,10 +4,10 @@ const ASSETS_TO_CACHE = [
   '/index.html',
   '/script.js',
   '/manifest.json',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',
-  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-  'https://cdn.jsdelivr.net/npm/chart.js'
+  '/cdn/bootstrap.min.css',
+  '/cdn/bootstrap.bundle.min.js',
+  '/cdn/chart.umd.min.js',
+  '/cdn/supabase.js'
 ];
 
 // Install Event: Cache all static assets
