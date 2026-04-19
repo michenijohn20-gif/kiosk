@@ -14,10 +14,6 @@
     />
 
     <style>
-      body {
-        padding-bottom: 220px;
-      }
-
       .floating-btn {
         position: fixed;
         right: 15px;
@@ -46,9 +42,14 @@
       <div class="container-fluid">
         <span class="navbar-brand">Mini POS</span>
 
-        <span class="badge bg-primary" id="total-items-count">
-          0 Products
-        </span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-secondary" id="total-items-count">
+            0 Products
+          </span>
+          <button class="btn btn-primary btn-sm position-relative" data-bs-toggle="offcanvas" data-bs-target="#cartOffcanvas">
+            🛒 Cart <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="cart-badge">0</span>
+          </button>
+        </div>
       </div>
     </nav>
 
@@ -80,38 +81,65 @@
     </div>
 
     <!-- PRODUCTS -->
-    <div class="container mt-3">
-      <div class="row g-3" id="inventory-grid">
-        <div id="loading-state" class="text-center py-4">Loading...</div>
-      </div>
-    </div>
-
-    <!-- CART -->
-    <div class="container mt-4">
-      <h6 class="mb-2">Cart Items</h6>
-      <ul class="list-group" id="cart-list"></ul>
-    </div>
-
-    <!-- BOTTOM BAR -->
-    <div class="fixed-bottom bg-white border-top p-3">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <div>
-          <b>Total: <span id="cart-total-price">0</span> KES</b><br />
-          <small id="cart-summary">0 items</small>
+      <div class="container mt-3">
+        <div class="row g-3" id="inventory-grid">
+          <div id="loading-state" class="text-center py-4">Loading...</div>
         </div>
       </div>
 
-      <div class="btn-group w-100 mb-2">
-        <input type="radio" name="payment" value="Cash" id="cash" checked />
-        <label class="btn btn-outline-secondary" for="cash">Cash</label>
+    <!-- QUICK CHECKOUT BAR (Visible when items are in cart) -->
+    <div id="quick-checkout-bar" class="fixed-bottom bg-white border-top shadow-lg p-2 d-none">
+      <div class="container d-flex align-items-center justify-content-between">
+        <div class="me-2">
+          <small class="text-muted d-block" style="font-size: 0.7rem;">TOTAL</small>
+          <strong class="text-primary"><span id="quick-total-price">0</span> KES</strong>
+        </div>
 
-        <input type="radio" name="payment" value="M-Pesa" id="mpesa" />
-        <label class="btn btn-outline-success" for="mpesa">M-Pesa</label>
+        <div class="d-flex align-items-center gap-2">
+          <div class="btn-group btn-group-sm">
+            <input type="radio" class="btn-check" name="payment-quick" value="Cash" id="cash-q" checked />
+            <label class="btn btn-outline-secondary" for="cash-q">Cash</label>
+
+            <input type="radio" class="btn-check" name="payment-quick" value="M-Pesa" id="mpesa-q" />
+            <label class="btn btn-outline-success" for="mpesa-q">M-Pesa</label>
+          </div>
+          <button class="btn btn-primary btn-sm px-3 fw-bold" onclick="checkout()">
+            Sell
+          </button>
+        </div>
       </div>
+    </div>
 
-      <button class="btn btn-primary w-100" onclick="checkout()">
-        Checkout
-      </button>
+    <!-- CART OFFCANVAS -->
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="cartOffcanvas">
+      <div class="offcanvas-header bg-dark text-white">
+        <h5 class="offcanvas-title">Your Cart</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+      </div>
+      <div class="offcanvas-body">
+        <ul class="list-group mb-3" id="cart-list"></ul>
+        
+        <div class="border-top pt-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <b>Total: <span id="cart-total-price">0</span> KES</b><br />
+              <small id="cart-summary">0 items</small>
+            </div>
+          </div>
+
+          <div class="btn-group w-100 mb-3">
+            <input type="radio" class="btn-check" name="payment" value="Cash" id="cash" checked />
+            <label class="btn btn-outline-secondary" for="cash">Cash</label>
+
+            <input type="radio" class="btn-check" name="payment" value="M-Pesa" id="mpesa" />
+            <label class="btn btn-outline-success" for="mpesa">M-Pesa</label>
+          </div>
+
+          <button class="btn btn-primary w-100 py-2" onclick="checkout()">
+            Complete Sale
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="modal fade" id="summaryModal">

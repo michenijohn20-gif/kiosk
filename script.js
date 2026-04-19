@@ -181,6 +181,19 @@ function updateCartUI() {
     total.toLocaleString();
 
   document.getElementById("cart-summary").innerText = `${count} items`;
+  document.getElementById("cart-badge").innerText = count;
+
+  // Update Quick Bottom Bar
+  const quickBar = document.getElementById("quick-checkout-bar");
+  const quickTotal = document.getElementById("quick-total-price");
+  
+  if (quickTotal) quickTotal.innerText = total.toLocaleString();
+  if (quickBar) {
+    // Only show the bar if there are items, otherwise hide to save space
+    count > 0 ? quickBar.classList.remove("d-none") : quickBar.classList.add("d-none");
+    // Add padding to body so the bar doesn't cover the last product row
+    document.body.style.paddingBottom = count > 0 ? "80px" : "0px";
+  }
 
   renderCartItems();
 }
@@ -226,7 +239,11 @@ function clearCart() {
 async function checkout() {
   if (cart.length === 0) return;
 
-  const payment = document.querySelector('input[name="payment"]:checked').value;
+  // Check which payment selector to use (Offcanvas or Quick Bar)
+  const isOffcanvasOpen = document.getElementById('cartOffcanvas').classList.contains('show');
+  const selector = isOffcanvasOpen ? 'input[name="payment"]:checked' : 'input[name="payment-quick"]:checked';
+  
+  const payment = document.querySelector(selector).value;
 
   const totalItems = cart.reduce((s, i) => s + i.qty, 0);
 
@@ -246,6 +263,11 @@ async function checkout() {
       },
     ]);
   }
+
+  // Close the offcanvas on success
+  const cartPanel = document.getElementById('cartOffcanvas');
+  const bsOffcanvas = bootstrap.Offcanvas.getInstance(cartPanel);
+  if (bsOffcanvas) bsOffcanvas.hide();
 
   alert("Sale complete");
   clearCart();
@@ -304,6 +326,20 @@ async function showSummary() {
           )
           .join("")
       : `<li class="list-group-item">All stock OK</li>`;
+
+    // TOP SELLERS
+    const topItems = await getTopSellingItems();
+    const topList = document.getElementById("top-sellers-list");
+    if (topList) {
+      topList.innerHTML = topItems.length
+        ? topItems.slice(0, 5).map(item => `
+          <li class="list-group-item d-flex justify-content-between">
+            ${item.name}
+            <span class="badge bg-primary rounded-pill">${item.count} sold</span>
+          </li>
+        `).join("")
+        : `<li class="list-group-item">No sales data</li>`;
+    }
 
     // SHOW MODAL
     const modal = new bootstrap.Modal(document.getElementById("summaryModal"));
