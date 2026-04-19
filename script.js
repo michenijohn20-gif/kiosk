@@ -7,9 +7,6 @@ const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 let cart = [];
 let allProducts = [];
 let salesChart = null;
-
-let selectedQty = 1;
-
 // ================= FETCH PRODUCTS =================
 async function fetchData() {
   const { data, error } = await _supabase.from("products").select("*");
@@ -36,6 +33,8 @@ function handleSearch() {
     renderCards(filtered);
   }, 150);
 }
+console.log("Script loaded");
+console.log("Supabase client initialized:", _supabase);
 
 // ================= RENDER PRODUCTS =================
 function renderCards(products) {
@@ -70,13 +69,13 @@ function renderCards(products) {
             <p class="fw-bold text-primary">${product.price} KES</p>
 
             <div class="d-flex justify-content-center gap-2 mb-2">
-              <button onclick="changeQty(-1)" class="btn btn-sm btn-outline-secondary">-</button>
-              <span>${selectedQty}</span>
-              <button onclick="changeQty(1)" class="btn btn-sm btn-outline-secondary">+</button>
+              <button onclick="changeQty(this, -1)" class="btn btn-sm btn-outline-secondary">-</button>
+              <span>1</span>
+              <button onclick="changeQty(this, 1)" class="btn btn-sm btn-outline-secondary">+</button>
             </div>
 
             <button class="btn btn-primary btn-sm w-100"
-              onclick='addToCart(${JSON.stringify(product)})'>
+              onclick='addToCart(this, ${JSON.stringify(product)})'>
               Add
             </button>
 
@@ -93,28 +92,36 @@ function renderCards(products) {
   document.getElementById("total-items-count").innerText =
     `${products.length} Products`;
 }
-
+console.log("Render function defined");
 // ================= QTY =================
-function changeQty(val) {
-  selectedQty += val;
-  if (selectedQty < 1) selectedQty = 1;
+function changeQty(btn, val) {
+  const span = btn.parentElement.querySelector("span");
+  let currentQty = parseInt(span.innerText);
+  currentQty += val;
+  if (currentQty < 1) currentQty = 1;
+  span.innerText = currentQty;
 }
 
 // ================= ADD TO CART =================
-function addToCart(product) {
-  const id = String(product.id);
+function addToCart(btn, product) {
+  const qtySpan = btn.closest(".card-body").querySelector(".d-flex span");
+  const qty = parseInt(qtySpan.innerText);
 
+  const id = String(product.id);
   const existing = cart.find((i) => String(i.id) === id);
 
   if (existing) {
-    existing.qty += selectedQty;
+    existing.qty += qty;
   } else {
-    cart.push({ ...product, id, qty: selectedQty });
+    cart.push({ ...product, id, qty: qty });
   }
 
-  selectedQty = 1;
+  qtySpan.innerText = "1"; // Reset quantity display after adding
   updateCartUI();
 }
+console.log("Add to cart function defined");
+console.log("Initial cart state:", cart);
+console.log("Initial products state:", allProducts);
 
 // ================= REMOVE =================
 function removeFromCart(id) {
