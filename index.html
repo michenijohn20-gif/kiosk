@@ -33,6 +33,10 @@
       #clearBtn {
         bottom: 160px;
       }
+
+      #inventoryBtn {
+        bottom: 230px;
+      }
     </style>
   </head>
 
@@ -68,6 +72,14 @@
       class="btn btn-danger floating-btn"
     >
       🗑
+    </button>
+
+    <button
+      id="inventoryBtn"
+      onclick="openInventoryManager()"
+      class="btn btn-success floating-btn"
+    >
+      📦
     </button>
 
     <!-- SEARCH -->
@@ -138,6 +150,56 @@
           <button class="btn btn-primary w-100 py-2" onclick="checkout()">
             Complete Sale
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- INVENTORY MANAGEMENT MODAL -->
+    <div class="modal fade" id="inventoryModal">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header bg-success text-white">
+            <h5 class="modal-title">Inventory Management</h5>
+            <button class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <!-- Sub-navigation -->
+            <ul class="nav nav-pills mb-3 justify-content-center" id="inventoryTabs" role="tablist">
+              <li class="nav-item" role="presentation">
+                <button class="nav-link active btn-sm px-3" id="manage-tab" data-bs-toggle="pill" data-bs-target="#manage-pane" type="button" role="tab">Update Stock</button>
+              </li>
+              <li class="nav-item" role="presentation">
+                <button class="nav-link btn-sm px-3" id="add-tab" data-bs-toggle="pill" data-bs-target="#add-pane" type="button" role="tab">Add New Item</button>
+              </li>
+            </ul>
+
+            <div class="tab-content">
+              <!-- Update Stock Tab -->
+              <div class="tab-pane fade show active" id="manage-pane" role="tabpanel">
+                <input class="form-control mb-3" id="inventorySearchInput" placeholder="Search items to update..." oninput="renderInventoryList()" />
+                <div id="inventory-management-list" style="max-height: 400px; overflow-y: auto;"></div>
+              </div>
+
+              <!-- Add New Product Tab -->
+              <div class="tab-pane fade" id="add-pane" role="tabpanel">
+                <form id="addProductForm" onsubmit="event.preventDefault(); addNewProduct();">
+                  <div class="mb-2">
+                    <label class="form-label small fw-bold">Product Name</label>
+                    <input type="text" class="form-control" id="new-p-name" placeholder="e.g. Fresh Milk 500ml" required>
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label small fw-bold">Select Category</label>
+                    <select class="form-select" id="new-p-cat-select" required></select>
+                  </div>
+                  <div class="row g-2 mb-3">
+                    <div class="col-7"><label class="form-label small fw-bold">Price (KES)</label><input type="number" class="form-control" id="new-p-price" required></div>
+                    <div class="col-5"><label class="form-label small fw-bold">Initial Stock</label><input type="number" class="form-control" id="new-p-stock" value="0" required></div>
+                  </div>
+                  <button type="submit" class="btn btn-success w-100">Add to Inventory</button>
+                </form>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

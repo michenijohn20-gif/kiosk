@@ -6,15 +6,46 @@ const _supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
 let cart = [];
 let allProducts = [];
+let allCategories = [];
 let salesChart = null;
 // ================= FETCH PRODUCTS =================
 async function fetchData() {
-  const { data, error } = await _supabase.from("products").select("*");
+  const loading = document.getElementById("loading-state");
+  
+  try {
+    // Fetch products and categories separately to avoid relationship errors
+    const [prodRes, catRes] = await Promise.all([
+      _supabase.from("products").select("*"),
+      _supabase.from("categories").select("*")
+    ]);
 
-  if (error) return console.error(error);
+    if (prodRes.error) throw prodRes.error;
+    if (catRes.error) throw catRes.error;
 
-  allProducts = data;
-  renderCards(allProducts);
+    allCategories = catRes.data || [];
+
+    // Manually join the data in JavaScript
+    allProducts = (prodRes.data || []).map(p => ({
+      ...p,
+      categories: allCategories.find(c => String(c.id) === String(p.category_id))
+    }));
+
+    renderCards(allProducts);
+  } catch (err) {
+    console.error("Supabase Fetch Error:", err);
+    if (loading) {
+      let helpText = "Ensure the 'products' table has a 'category_id' column.";
+      if (err.message && err.message.includes("schema cache")) {
+        helpText = "Database schema mismatch. Try 'Reload PostgREST' in Supabase API settings.";
+      }
+      
+      loading.innerHTML = `
+        <div class="alert alert-danger mx-auto" style="max-width: 400px;">
+          <strong>Load Failed:</strong> ${err.message}<br>
+          <small>${helpText}</small>
+        </div>`;
+    }
+  }
 }
 
 // ================= SEARCH =================
@@ -45,8 +76,10 @@ function renderCards(products) {
   const grouped = {};
 
   products.forEach((p) => {
-    if (!grouped[p.category]) grouped[p.category] = [];
-    grouped[p.category].push(p);
+    // Access nested category name from the join
+    const category = p.categories?.name || "Uncategorized";
+    if (!grouped[category]) grouped[category] = [];
+    grouped[category].push(p);
   });
 
   grid.innerHTML = Object.keys(grouped)
@@ -64,7 +97,7 @@ function renderCards(products) {
           <div class="card-body text-center">
 
             <h6>${product.name}</h6>
-            <small class="text-muted">${product.category}</small>
+            <small class="text-muted">${product.categories?.name || "General"}</small>
             
             <div class="mb-2">
               ${product.stock <= 0 
@@ -462,6 +495,120 @@ function renderTrendChart(salesData) {
     },
     options: { responsive: true, plugins: { legend: { display: false } } }
   });
+}
+
+// ================= INVENTORY MANAGEMENT =================
+async function openInventoryManager() {
+  renderInventoryList();
+  
+  const select = document.getElementById("new-p-cat-select");
+  if (select) {
+    // If categories are empty, try to fetch them again to ensure we aren't stuck
+    if (allCategories.length === 0) {
+      select.innerHTML = `<option value="" disabled selected>Fetching categories...</option>`;
+      const { data, error } = await _supabase.from("categories").select("id, name");
+      
+      if (error) {
+        console.error("Manual Category Fetch Error:", error);
+        select.innerHTML = `<option value="" disabled selected>Error: ${error.message}</option>`;
+        return;
+      }
+
+      if (data && data.length > 0) {
+        allCategories = data;
+      }
+    }
+
+    // Update dropdown content based on current data
+    if (allCategories.length === 0) {
+      select.innerHTML = `<option value="" disabled selected>No categories found (Check RLS Policies)</option>`;
+    } else {
+      select.innerHTML = `
+        <option value="" disabled selected>Choose a category...</option>
+        ${allCategories.map(c => 
+          `<option value="${c.id}">${c.name}</option>`
+        ).join("")}
+      `;
+    }
+  }
+
+  const modalEl = document.getElementById("inventoryModal");
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+}
+
+function renderInventoryList() {
+  const q = document.getElementById("inventorySearchInput")?.value.toLowerCase().trim() || "";
+  const list = document.getElementById("inventory-management-list");
+  
+  const filtered = allProducts.filter(p => p.name.toLowerCase().includes(q));
+
+  list.innerHTML = filtered.map(p => `
+    <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+      <div style="flex: 1;">
+        <h6 class="mb-0">${p.name}</h6>
+        <small class="text-muted">Current Stock: <b>${p.stock}</b></small>
+      </div>
+      <div class="d-flex gap-2" style="width: 160px;">
+        <input type="number" class="form-control form-control-sm" id="stock-input-${p.id}" value="${p.stock}">
+        <button class="btn btn-sm btn-success" onclick="saveStockUpdate('${p.id}', 'stock-input-${p.id}')">Save</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function saveStockUpdate(id, inputId) {
+  const input = document.getElementById(inputId);
+  const newStock = parseInt(input.value);
+
+  if (isNaN(newStock) || newStock < 0) {
+    showNotification("Please enter a valid stock number", "warning");
+    return;
+  }
+
+  const { error } = await _supabase.from("products").update({ stock: newStock }).eq("id", id);
+
+  if (error) {
+    showNotification("Error updating database", "danger");
+  } else {
+    showNotification("Stock updated successfully!", "success");
+    await fetchData(); // Refresh global products and main UI
+    renderInventoryList(); // Refresh the list in the modal
+  }
+}
+
+async function addNewProduct() {
+  const name = document.getElementById("new-p-name").value.trim();
+  const category_id = document.getElementById("new-p-cat-select").value;
+  const price = parseFloat(document.getElementById("new-p-price").value);
+  const stock = parseInt(document.getElementById("new-p-stock").value);
+
+  if (!name || !category_id || isNaN(price) || isNaN(stock)) {
+    showNotification("Please fill in all fields correctly", "warning");
+    return;
+  }
+
+  const { error } = await _supabase.from("products").insert([
+    { name, category_id, price, stock }
+  ]).select();
+
+  if (error) {
+    console.error("Supabase Insert Error:", error);
+    showNotification(`Error: ${error.message}`, "danger");
+  } else {
+    showNotification(`${name} added successfully!`, "success");
+    
+    // Reset the form
+    document.getElementById("addProductForm").reset();
+    
+    // Switch back to management tab to see the new item
+    const manageTabTrigger = document.querySelector('#manage-tab');
+    bootstrap.Tab.getOrCreateInstance(manageTabTrigger).show();
+    
+    // Refresh main data and modal list
+    await fetchData();
+    renderInventoryList();
+  }
 }
 
 // ================= INIT =================
