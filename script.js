@@ -8,6 +8,7 @@ let cart = [];
 let allProducts = [];
 let allCategories = [];
 let lastSale = null;
+let productToDeleteId = null;
 let salesChart = null;
 
 // ================= FETCH PRODUCTS =================
@@ -62,12 +63,14 @@ async function fetchData() {
     }));
     localStorage.setItem("allProducts", JSON.stringify(allProducts));
 
-    // Fetch sales data for best-seller sorting
-    const { data: salesData, error: salesError } = await fetchWithTimeout(_supabase.from("sales").select("product_id"));
-    if (!salesError) {
-      localStorage.setItem("allSales", JSON.stringify(salesData));
-    } else {
-      console.warn("Could not fetch fresh sales data. Attempting to load from cache.", salesError);
+    // Fetch sales data for best-seller sorting (Wrapped to prevent crashing product load)
+    try {
+      const { data: salesData, error: salesError } = await fetchWithTimeout(_supabase.from("sales").select("product_id"));
+      if (!salesError) {
+        localStorage.setItem("allSales", JSON.stringify(salesData));
+      }
+    } catch (e) {
+      console.warn("Could not fetch fresh sales data for sorting.");
     }
 
     // Apply best seller sorting using available sales data (fresh or cached)
@@ -624,7 +627,7 @@ async function showSummary() {
     modal.show();
   } catch (err) {
     console.error("SUMMARY ERROR DETAILS:", err);
-    alert("Failed to load summary: " + (err.message || JSON.stringify(err)));
+    showNotification("Failed to load summary: " + (err.message || "Error"), "danger");
   }
 }
 
@@ -807,6 +810,41 @@ async function openInventoryManager() {
   modal.show();
 }
 
+function deleteProduct(id) {
+  productToDeleteId = id;
+  const modal = bootstrap.Modal.getOrCreateInstance(
+    document.getElementById("deleteConfirmModal"),
+  );
+  modal.show();
+}
+
+async function confirmDeleteProduct() {
+  if (!productToDeleteId) return;
+
+  const confirmModal = bootstrap.Modal.getInstance(
+    document.getElementById("deleteConfirmModal"),
+  );
+  if (confirmModal) confirmModal.hide();
+
+  const { error } = await _supabase
+    .from("products")
+    .delete()
+    .eq("id", productToDeleteId);
+
+  if (error) {
+    showNotification("Failed to delete: " + error.message, "danger");
+  } else {
+    showNotification("Product deleted successfully", "success");
+    // Refresh from server to ensure complete sync
+    await fetchData();
+    // Update all relevant UI lists
+    renderFullInventoryList();
+    renderInventoryList();
+    renderPriceList();
+  }
+  productToDeleteId = null;
+}
+
 async function renderSalesLog() {
   const list = document.getElementById("sales-log-list");
   if (!list) return;
@@ -872,6 +910,9 @@ function renderFullInventoryList() {
         <td><small class="text-muted">${p.categories?.name || "N/A"}</small></td>
         <td class="text-end"><small>${p.price.toLocaleString()}</small></td>
         <td class="text-center ${stockClass}"><small>${p.stock}</small></td>
+        <td class="text-center">
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct('${p.id}')">🗑</button>
+        </td>
       </tr>
     `;
   }).join("");
