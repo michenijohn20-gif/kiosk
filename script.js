@@ -278,7 +278,6 @@ function updateCartUI() {
   renderCartItems();
 }
 
-
 // ================= CART RENDER =================
 function renderCartItems() {
   const list = document.getElementById("cart-list");
@@ -316,6 +315,78 @@ function clearCart() {
   updateCartUI();
 }
 
+// ================= OFFLINE QUEUE =================
+function getOfflineQueue() {
+  try {
+    return JSON.parse(localStorage.getItem('offlineSalesQueue') || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function saveOfflineQueue(queue) {
+  localStorage.setItem('offlineSalesQueue', JSON.stringify(queue));
+}
+
+function addToOfflineQueue(saleData) {
+  const queue = getOfflineQueue();
+  queue.push({ ...saleData, queuedAt: new Date().toISOString() });
+  saveOfflineQueue(queue);
+}
+
+async function syncOfflineQueue() {
+  const queue = getOfflineQueue();
+  if (queue.length === 0) return;
+
+  showNotification(`Syncing ${queue.length} offline sale(s)...`, "info");
+
+  const failed = [];
+
+  for (const sale of queue) {
+    try {
+      // Update stock for each item
+      for (const item of sale.items) {
+        const { error: stockError } = await _supabase
+          .from("products")
+          .update({ stock: item.stock - item.qty })
+          .eq("id", item.id);
+        if (stockError) throw stockError;
+      }
+
+      // Insert sale records
+      for (const item of sale.items) {
+        const { error: saleError } = await _supabase.from("sales").insert([{
+          product_id: item.id,
+          amount_paid: item.price * item.qty,
+          payment_method: sale.payment,
+        }]);
+        if (saleError) throw saleError;
+      }
+    } catch (err) {
+      console.error("Failed to sync queued sale:", err);
+      failed.push(sale); // Keep failed ones in queue
+    }
+  }
+
+  saveOfflineQueue(failed);
+
+  if (failed.length === 0) {
+    showNotification("All offline sales synced successfully!", "success");
+    fetchData(); // Refresh products with updated stock
+  } else {
+    showNotification(`${failed.length} sale(s) failed to sync. Will retry later.`, "warning");
+  }
+}
+
+// Apply stock deduction locally so UI stays accurate while offline
+function applyStockLocally(cartItems) {
+  cartItems.forEach(cartItem => {
+    const product = allProducts.find(p => String(p.id) === String(cartItem.id));
+    if (product) product.stock -= cartItem.qty;
+  });
+  localStorage.setItem('allProducts', JSON.stringify(allProducts));
+}
+
 // ================= CHECKOUT =================
 async function checkout() {
   if (cart.length === 0) return;
@@ -325,41 +396,70 @@ async function checkout() {
   const selector = isOffcanvasOpen ? 'input[name="payment"]:checked' : 'input[name="payment-quick"]:checked';
   
   const payment = document.querySelector(selector).value;
-
   const totalItems = cart.reduce((s, i) => s + i.qty, 0);
 
   if (!confirm(`Sell ${totalItems} items via ${payment}?`)) return;
 
-  for (const item of cart) {
-    await _supabase
-      .from("products")
-      .update({ stock: item.stock - item.qty })
-      .eq("id", item.id);
-
-    await _supabase.from("sales").insert([
-      {
-        product_id: item.id,
-        amount_paid: item.price * item.qty,
-        payment_method: payment,
-      },
-    ]);
-  }
-
-  // Store data for the receipt before clearing
+  // Store receipt data before anything else
   lastSale = {
     items: [...cart],
     total: cart.reduce((s, i) => s + i.price * i.qty, 0),
     payment: payment
   };
 
-  // Close the offcanvas on success
-  const cartPanel = document.getElementById('cartOffcanvas');
-  const bsOffcanvas = bootstrap.Offcanvas.getInstance(cartPanel);
-  if (bsOffcanvas) bsOffcanvas.hide();
+  if (!navigator.onLine) {
+    // === OFFLINE: Save to queue, update stock locally ===
+    addToOfflineQueue({ items: [...cart], payment });
+    applyStockLocally(cart);
+    showNotification("Offline: Sale saved and will sync when back online.", "warning");
 
-  showReceiptPopup();
-  clearCart();
-  fetchData();
+    const cartPanel = document.getElementById('cartOffcanvas');
+    const bsOffcanvas = bootstrap.Offcanvas.getInstance(cartPanel);
+    if (bsOffcanvas) bsOffcanvas.hide();
+
+    showReceiptPopup();
+    clearCart();
+    renderCards(allProducts); // Re-render with locally updated stock
+    return;
+  }
+
+  // === ONLINE: Push to Supabase as normal ===
+  try {
+    for (const item of cart) {
+      await _supabase
+        .from("products")
+        .update({ stock: item.stock - item.qty })
+        .eq("id", item.id);
+
+      await _supabase.from("sales").insert([{
+        product_id: item.id,
+        amount_paid: item.price * item.qty,
+        payment_method: payment,
+      }]);
+    }
+
+    const cartPanel = document.getElementById('cartOffcanvas');
+    const bsOffcanvas = bootstrap.Offcanvas.getInstance(cartPanel);
+    if (bsOffcanvas) bsOffcanvas.hide();
+
+    showReceiptPopup();
+    clearCart();
+    fetchData();
+  } catch (err) {
+    // Network failed mid-checkout — queue it
+    console.error("Checkout failed, queuing sale:", err);
+    addToOfflineQueue({ items: [...cart], payment });
+    applyStockLocally(cart);
+    showNotification("Connection lost during sale. Sale queued for sync.", "warning");
+
+    const cartPanel = document.getElementById('cartOffcanvas');
+    const bsOffcanvas = bootstrap.Offcanvas.getInstance(cartPanel);
+    if (bsOffcanvas) bsOffcanvas.hide();
+
+    showReceiptPopup();
+    clearCart();
+    renderCards(allProducts);
+  }
 }
 
 function showReceiptPopup() {
@@ -869,7 +969,10 @@ function notifyIfNoInternet() {
 
 window.addEventListener('load', notifyIfNoInternet);
 window.addEventListener('offline', () => showNotification("You lost internet connection!", "danger"));
-window.addEventListener('online', () => showNotification("Back online! Data will sync now.", "success"));
+window.addEventListener('online', () => {
+  showNotification("Back online! Syncing queued sales...", "success");
+  syncOfflineQueue();
+});
 
 
 // ================= THEME TOGGLE =================
@@ -896,6 +999,15 @@ updateCartUI();
 const savedTheme = localStorage.getItem("theme") || "light";
 document.documentElement.setAttribute("data-bs-theme", savedTheme);
 updateThemeIcon(savedTheme);
+
+// Sync any sales that were queued while offline
+if (navigator.onLine) {
+  const pending = getOfflineQueue();
+  if (pending.length > 0) {
+    showNotification(`You have ${pending.length} unsynced sale(s). Syncing now...`, "info");
+    syncOfflineQueue();
+  }
+}
 // Register the Service Worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
