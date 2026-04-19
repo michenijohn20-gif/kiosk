@@ -12,26 +12,28 @@ let salesChart = null;
 // ================= FETCH PRODUCTS =================
 async function fetchData() {
   const loading = document.getElementById("loading-state");
-  
+
   try {
     // Fetch products and categories separately to avoid relationship errors
     const [prodRes, catRes] = await Promise.all([
       _supabase.from("products").select("*"),
-      _supabase.from("categories").select("*").order("name") // Added order for consistency
+      _supabase.from("categories").select("*").order("name"), // Added order for consistency
     ]);
 
     if (prodRes.error) throw prodRes.error;
     if (catRes.error) throw catRes.error;
 
     allCategories = catRes.data || [];
-    localStorage.setItem('allCategories', JSON.stringify(allCategories)); // Save to localStorage
+    localStorage.setItem("allCategories", JSON.stringify(allCategories)); // Save to localStorage
 
     // Manually join the data in JavaScript
-    allProducts = (prodRes.data || []).map(p => ({
+    allProducts = (prodRes.data || []).map((p) => ({
       ...p,
-      categories: allCategories.find(c => String(c.id) === String(p.category_id))
+      categories: allCategories.find(
+        (c) => String(c.id) === String(p.category_id),
+      ),
     }));
-    localStorage.setItem('allProducts', JSON.stringify(allProducts)); // Save to localStorage
+    localStorage.setItem("allProducts", JSON.stringify(allProducts)); // Save to localStorage
 
     renderCategoryPills();
     renderCards(allProducts);
@@ -40,12 +42,13 @@ async function fetchData() {
     if (loading) {
       let helpText = "Ensure the 'products' table has a 'category_id' column.";
       if (err.message && err.message.includes("schema cache")) {
-        helpText = "Database schema mismatch. Try 'Reload PostgREST' in Supabase API settings.";
+        helpText =
+          "Database schema mismatch. Try 'Reload PostgREST' in Supabase API settings.";
       }
-      
+
       // Attempt to load from localStorage if fetch fails
-      const cachedProducts = localStorage.getItem('allProducts');
-      const cachedCategories = localStorage.getItem('allCategories');
+      const cachedProducts = localStorage.getItem("allProducts");
+      const cachedCategories = localStorage.getItem("allCategories");
 
       if (cachedProducts && cachedCategories) {
         allProducts = JSON.parse(cachedProducts);
@@ -70,21 +73,26 @@ function renderCategoryPills() {
   const container = document.getElementById("category-pills");
   if (!container) return;
 
-  container.innerHTML = `<button class="btn btn-sm btn-outline-primary active" onclick="filterByCategory('all', this)">All</button>` + 
-    allCategories.map(c => ` 
+  container.innerHTML =
+    `<button class="btn btn-sm btn-outline-primary active" onclick="filterByCategory('all', this)">All</button>` +
+    allCategories
+      .map(
+        (c) => ` 
       <button class="btn btn-sm btn-outline-primary" data-category="${c.name}" onclick="filterByCategory(this.dataset.category, this)">${c.name}</button>
-    `).join("");
+    `,
+      )
+      .join("");
 }
 
 function filterByCategory(category, btn) {
   const buttons = document.querySelectorAll("#category-pills button");
-  buttons.forEach(b => b.classList.remove("active"));
+  buttons.forEach((b) => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
 
   if (category === "all") {
     renderCards(allProducts);
   } else {
-    const filtered = allProducts.filter(p => p.categories?.name === category);
+    const filtered = allProducts.filter((p) => p.categories?.name === category);
     renderCards(filtered);
   }
 }
@@ -96,7 +104,9 @@ function handleSearch() {
   clearTimeout(searchTimeout);
 
   searchTimeout = setTimeout(() => {
-    const q = (document.getElementById("searchInput").value || "").toLowerCase().trim();
+    const q = (document.getElementById("searchInput").value || "")
+      .toLowerCase()
+      .trim();
 
     const filtered = allProducts.filter((p) =>
       p.name.toLowerCase().includes(q),
@@ -107,13 +117,15 @@ function handleSearch() {
 }
 
 function startVoiceSearch() {
-  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-  recognition.lang = 'en-US';
+  const recognition = new (
+    window.SpeechRecognition || window.webkitSpeechRecognition
+  )();
+  recognition.lang = "en-US";
   showNotification("Listening...", "info");
-  
+
   recognition.onresult = (event) => {
     const text = event.results[0][0].transcript;
-    document.getElementById('searchInput').value = text;
+    document.getElementById("searchInput").value = text;
     handleSearch();
     showNotification(`Searching for: ${text}`, "success");
   };
@@ -130,7 +142,8 @@ function renderCards(products) {
 
   const grouped = {};
 
-  products.forEach((p) => { // Ensure products are sorted by name before grouping
+  products.forEach((p) => {
+    // Ensure products are sorted by name before grouping
     // Access nested category name from the join
     const category = p.categories?.name || "Uncategorized";
     if (!grouped[category]) grouped[category] = [];
@@ -139,23 +152,27 @@ function renderCards(products) {
 
   grid.innerHTML = Object.keys(grouped)
     .sort() // Sort categories alphabetically
-    .map( 
+    .map(
       (cat) => `
-    <div class="col-12 mt-2" id="section-${cat.replace(/\s+/g, '')}">
+    <div class="col-12 mt-2" id="section-${cat.replace(/\s+/g, "")}">
       <h5 class="text-primary">${cat}</h5>
     </div>
 
-    ${grouped[cat].map((product) => `
+    ${grouped[cat]
+      .map(
+        (product) => `
       <div class="col-6">
         <div class="card shadow-sm border-0">
           <div class="card-body text-center p-2">
             <h6 class="mb-1 text-truncate" title="${product.name}">${product.name}</h6>
             <div class="mb-1">
-              ${product.stock <= 0 
-                ? '<span class="badge bg-danger">Out of stock</span>' 
-                : product.stock < 5 
-                ? '<span class="badge bg-warning text-dark">Few in stock</span>' 
-                : '<span class="badge bg-success">In stock</span>'}
+              ${
+                product.stock <= 0
+                  ? '<span class="badge bg-danger">Out of stock</span>'
+                  : product.stock < 5
+                    ? '<span class="badge bg-warning text-dark">Few in stock</span>'
+                    : '<span class="badge bg-success">In stock</span>'
+              }
             </div>
             <p class="fw-bold text-primary mb-2">${product.price} KES</p>
             <div class="d-flex justify-content-center align-items-center gap-2 mb-2">
@@ -170,12 +187,16 @@ function renderCards(products) {
           </div>
         </div>
       </div>
-    `).join("")}`).join("");
+    `,
+      )
+      .join("")}`,
+    )
+    .join("");
 
   document.getElementById("total-items-count").innerText =
     `${products.length} Products`;
 }
-// ================= QTY ================= 
+// ================= QTY =================
 function changeQty(btn, val) {
   const qtyDisplay = btn.parentElement.querySelector(".qty-display");
   if (!qtyDisplay) return;
@@ -198,17 +219,18 @@ function showNotification(message, type = "info") {
     ${message}
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   `;
-  
+
   document.body.appendChild(toast);
-  
+
   setTimeout(() => {
     toast.remove();
   }, 3000);
 }
 
 // ================= ADD TO CART =================
-function addToCart(btn, productId) { // Changed to accept productId directly
-  const product = allProducts.find(p => String(p.id) === String(productId));
+function addToCart(btn, productId) {
+  // Changed to accept productId directly
+  const product = allProducts.find((p) => String(p.id) === String(productId));
   if (!product) return;
 
   const qtySpan = btn.closest(".card-body")?.querySelector(".qty-display");
@@ -270,10 +292,8 @@ function updateCartUI() {
   const quickBarTotal = document.getElementById("quick-total-price");
   if (quickBarTotal) quickBarTotal.innerText = total.toLocaleString();
 
-  const quickBar = document.getElementById("quick-checkout-bar"); // This bar is now permanent
-  if (quickBar) { 
-    document.body.style.paddingBottom = "80px"; // Ensure padding is always there
-  }
+  const quickBar = document.getElementById("quick-checkout-bar");
+  if (quickBar) document.body.style.paddingBottom = "80px";
 
   renderCartItems();
 }
@@ -318,14 +338,14 @@ function clearCart() {
 // ================= OFFLINE QUEUE =================
 function getOfflineQueue() {
   try {
-    return JSON.parse(localStorage.getItem('offlineSalesQueue') || '[]');
+    return JSON.parse(localStorage.getItem("offlineSalesQueue") || "[]");
   } catch {
     return [];
   }
 }
 
 function saveOfflineQueue(queue) {
-  localStorage.setItem('offlineSalesQueue', JSON.stringify(queue));
+  localStorage.setItem("offlineSalesQueue", JSON.stringify(queue));
 }
 
 function addToOfflineQueue(saleData) {
@@ -344,24 +364,16 @@ async function syncOfflineQueue() {
 
   for (const sale of queue) {
     try {
-      // Update stock for each item
-      for (const item of sale.items) {
-        const { error: stockError } = await _supabase
-          .from("products")
-          .update({ stock: item.stock - item.qty })
-          .eq("id", item.id);
-        if (stockError) throw stockError;
-      }
-
-      // Insert sale records
-      for (const item of sale.items) {
-        const { error: saleError } = await _supabase.from("sales").insert([{
-          product_id: item.id,
-          amount_paid: item.price * item.qty,
-          payment_method: sale.payment,
-        }]);
-        if (saleError) throw saleError;
-      }
+      // Atomic transaction via Supabase RPC
+      const { error } = await _supabase.rpc("process_checkout", {
+        cart_items: sale.items.map((i) => ({
+          id: i.id,
+          qty: i.qty,
+          price: i.price,
+        })),
+        p_payment_method: sale.payment,
+      });
+      if (error) throw error;
     } catch (err) {
       console.error("Failed to sync queued sale:", err);
       failed.push(sale); // Keep failed ones in queue
@@ -374,99 +386,96 @@ async function syncOfflineQueue() {
     showNotification("All offline sales synced successfully!", "success");
     fetchData(); // Refresh products with updated stock
   } else {
-    showNotification(`${failed.length} sale(s) failed to sync. Will retry later.`, "warning");
+    showNotification(
+      `${failed.length} sale(s) failed to sync. Will retry later.`,
+      "warning",
+    );
   }
 }
 
 // Apply stock deduction locally so UI stays accurate while offline
 function applyStockLocally(cartItems) {
-  cartItems.forEach(cartItem => {
-    const product = allProducts.find(p => String(p.id) === String(cartItem.id));
+  cartItems.forEach((cartItem) => {
+    const product = allProducts.find(
+      (p) => String(p.id) === String(cartItem.id),
+    );
     if (product) product.stock -= cartItem.qty;
   });
-  localStorage.setItem('allProducts', JSON.stringify(allProducts));
+  localStorage.setItem("allProducts", JSON.stringify(allProducts));
 }
 
 // ================= CHECKOUT =================
-async function checkout() {
+function checkout() {
   if (cart.length === 0) return;
+  const modal = bootstrap.Modal.getOrCreateInstance(
+    document.getElementById("confirmSaleModal"),
+  );
+  modal.show();
+}
 
-  // Check which payment selector to use (Offcanvas or Quick Bar)
-  const isOffcanvasOpen = document.getElementById('cartOffcanvas').classList.contains('show');
-  const selector = isOffcanvasOpen ? 'input[name="payment"]:checked' : 'input[name="payment-quick"]:checked';
-  
-  const payment = document.querySelector(selector).value;
-  const totalItems = cart.reduce((s, i) => s + i.qty, 0);
+async function completeSale() {
+  const confirmModal = bootstrap.Modal.getInstance(
+    document.getElementById("confirmSaleModal"),
+  );
+  if (confirmModal) confirmModal.hide();
 
-  if (!confirm(`Sell ${totalItems} items via ${payment}?`)) return;
+  const isOffcanvasOpen = document
+    .getElementById("cartOffcanvas")
+    .classList.contains("show");
+  const selector = isOffcanvasOpen
+    ? 'input[name="payment"]:checked'
+    : 'input[name="payment-quick"]:checked';
+  const payment = document.querySelector(selector)?.value || "Cash";
 
   // Store receipt data before anything else
   lastSale = {
     items: [...cart],
     total: cart.reduce((s, i) => s + i.price * i.qty, 0),
-    payment: payment
+    payment: payment,
   };
 
   if (!navigator.onLine) {
-    // === OFFLINE: Save to queue, update stock locally ===
     addToOfflineQueue({ items: [...cart], payment });
     applyStockLocally(cart);
-    showNotification("Offline: Sale saved and will sync when back online.", "warning");
-
-    const cartPanel = document.getElementById('cartOffcanvas');
-    const bsOffcanvas = bootstrap.Offcanvas.getInstance(cartPanel);
-    if (bsOffcanvas) bsOffcanvas.hide();
-
-    showReceiptPopup();
-    clearCart();
-    renderCards(allProducts); // Re-render with locally updated stock
+    showNotification(
+      "Offline: Sale saved and will sync when back online.",
+      "warning",
+    );
+    finalizeSale();
     return;
   }
 
-  // === ONLINE: Push to Supabase as normal ===
   try {
-    for (const item of cart) {
-      await _supabase
-        .from("products")
-        .update({ stock: item.stock - item.qty })
-        .eq("id", item.id);
-
-      await _supabase.from("sales").insert([{
-        product_id: item.id,
-        amount_paid: item.price * item.qty,
-        payment_method: payment,
-      }]);
-    }
-
-    const cartPanel = document.getElementById('cartOffcanvas');
-    const bsOffcanvas = bootstrap.Offcanvas.getInstance(cartPanel);
-    if (bsOffcanvas) bsOffcanvas.hide();
-
-    showReceiptPopup();
-    clearCart();
-    fetchData();
+    const { error } = await _supabase.rpc("process_checkout", {
+      cart_items: cart.map((i) => ({ id: i.id, qty: i.qty, price: i.price })),
+      p_payment_method: payment,
+    });
+    if (error) throw error;
+    finalizeSale();
+    fetchData(); // Refresh stock from server
   } catch (err) {
-    // Network failed mid-checkout — queue it
-    console.error("Checkout failed, queuing sale:", err);
+    showNotification("Sale failed. Saving locally...", "warning");
     addToOfflineQueue({ items: [...cart], payment });
     applyStockLocally(cart);
-    showNotification("Connection lost during sale. Sale queued for sync.", "warning");
-
-    const cartPanel = document.getElementById('cartOffcanvas');
-    const bsOffcanvas = bootstrap.Offcanvas.getInstance(cartPanel);
-    if (bsOffcanvas) bsOffcanvas.hide();
-
-    showReceiptPopup();
-    clearCart();
-    renderCards(allProducts);
+    finalizeSale();
   }
 }
 
+function finalizeSale() {
+  const bsOffcanvas = bootstrap.Offcanvas.getInstance(
+    document.getElementById("cartOffcanvas"),
+  );
+  if (bsOffcanvas) bsOffcanvas.hide();
+  showReceiptPopup();
+  clearCart();
+  renderCards(allProducts);
+}
+
 function showReceiptPopup() {
-  document.getElementById("receipt-details").innerText = 
+  document.getElementById("receipt-details").innerText =
     `${lastSale.total.toLocaleString()} KES paid via ${lastSale.payment}`;
-  
-  const modal = new bootstrap.Modal(document.getElementById('receiptModal'));
+
+  const modal = new bootstrap.Modal(document.getElementById("receiptModal"));
   modal.show();
 }
 
@@ -474,7 +483,7 @@ function shareToWhatsApp() {
   if (!lastSale) return;
 
   let message = `*--- RECEIPT ---*%0A`;
-  lastSale.items.forEach(item => {
+  lastSale.items.forEach((item) => {
     message += `${item.name} x${item.qty} = ${item.price * item.qty} KES%0A`;
   });
   message += `--------------------%0A`;
@@ -483,7 +492,7 @@ function shareToWhatsApp() {
   message += `_Thank you for shopping with us!_`;
 
   const url = `https://wa.me/?text=${message}`;
-  window.open(url, '_blank');
+  window.open(url, "_blank");
 }
 
 // ================= RANKING =================
@@ -503,10 +512,12 @@ async function getTopSellingItems() {
   }, {});
 
   // Map through ALL products to include items with 0 sales
-  return allProducts.map(p => ({
-    name: p.name,
-    count: counts[p.id] || 0
-  })).sort((a, b) => b.count - a.count);
+  return allProducts
+    .map((p) => ({
+      name: p.name,
+      count: counts[p.id] || 0,
+    }))
+    .sort((a, b) => b.count - a.count);
 }
 
 // ================= SUMMARY (NEW & IMPROVED) =================
@@ -514,7 +525,9 @@ async function showSummary() {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const localISO = new Date(today.getTime() - (today.getTimezoneOffset() * 60000)).toISOString();
+    const localISO = new Date(
+      today.getTime() - today.getTimezoneOffset() * 60000,
+    ).toISOString();
 
     const { data: sales, error } = await _supabase
       .from("sales")
@@ -564,7 +577,9 @@ async function showSummary() {
       : `<li class="list-group-item">All stock OK</li>`;
 
     // SHOW MODAL
-    const inventoryModal = bootstrap.Modal.getInstance(document.getElementById("inventoryModal"));
+    const inventoryModal = bootstrap.Modal.getInstance(
+      document.getElementById("inventoryModal"),
+    );
     if (inventoryModal) inventoryModal.hide();
 
     const modalEl = document.getElementById("summaryModal");
@@ -593,9 +608,13 @@ async function showDetailedSummary() {
     const safeSales = sales || [];
 
     // 1. Calculate Average Transaction Value (ATV)
-    const totalRevenue = safeSales.reduce((sum, s) => sum + Number(s.amount_paid || 0), 0);
-    const avgSale = safeSales.length ? (totalRevenue / safeSales.length) : 0;
-    document.getElementById("det-avg-sale").innerText = Math.round(avgSale).toLocaleString() + " KES";
+    const totalRevenue = safeSales.reduce(
+      (sum, s) => sum + Number(s.amount_paid || 0),
+      0,
+    );
+    const avgSale = safeSales.length ? totalRevenue / safeSales.length : 0;
+    document.getElementById("det-avg-sale").innerText =
+      Math.round(avgSale).toLocaleString() + " KES";
 
     // 2. Calculate Peak Hour
     const hourCounts = (safeSales || []).reduce((acc, s) => {
@@ -603,9 +622,13 @@ async function showDetailedSummary() {
       acc[hr] = (acc[hr] || 0) + 1;
       return acc;
     }, {});
-    let peakHour = 0, maxCount = -1;
+    let peakHour = 0,
+      maxCount = -1;
     for (const hr in hourCounts) {
-      if (hourCounts[hr] > maxCount) { peakHour = hr; maxCount = hourCounts[hr]; }
+      if (hourCounts[hr] > maxCount) {
+        peakHour = hr;
+        maxCount = hourCounts[hr];
+      }
     }
     document.getElementById("det-peak-hour").innerText = `${peakHour}:00`;
 
@@ -613,34 +636,44 @@ async function showDetailedSummary() {
     document.getElementById("det-total-qty").innerText = safeSales.length;
 
     // Hide the basic summary modal first
-    const summaryModal = bootstrap.Modal.getInstance(document.getElementById("summaryModal"));
+    const summaryModal = bootstrap.Modal.getInstance(
+      document.getElementById("summaryModal"),
+    );
     if (summaryModal) summaryModal.hide();
 
     // 4. Rankings (Best & Worst)
     const rankings = await getTopSellingItems();
-    
+
     const topList = document.getElementById("top-sellers-list");
     if (topList) {
-      const topItems = rankings.filter(i => i.count > 0).slice(0, 5);
+      const topItems = rankings.filter((i) => i.count > 0).slice(0, 5);
       topList.innerHTML = topItems.length
-        ? topItems.map(item => `
+        ? topItems
+            .map(
+              (item) => `
           <li class="list-group-item d-flex justify-content-between py-1 px-2 border-0">
             <small>${item.name}</small>
             <span class="badge bg-success rounded-pill">${item.count}</span>
           </li>
-        `).join("")
+        `,
+            )
+            .join("")
         : `<li class="list-group-item text-muted border-0">No data</li>`;
     }
 
     const worstList = document.getElementById("worst-sellers-list");
     if (worstList) {
       const slowItems = [...rankings].reverse().slice(0, 5);
-      worstList.innerHTML = slowItems.map(item => `
+      worstList.innerHTML = slowItems
+        .map(
+          (item) => `
         <li class="list-group-item d-flex justify-content-between py-1 px-2 border-0">
           <small>${item.name}</small>
           <span class="badge bg-light text-dark border rounded-pill">${item.count}</span>
         </li>
-      `).join("");
+      `,
+        )
+        .join("");
     }
 
     // 4. Trend Chart (Last 7 Days)
@@ -657,37 +690,43 @@ async function showDetailedSummary() {
 }
 
 function renderTrendChart(salesData) {
-  const ctx = document.getElementById('salesTrendChart').getContext('2d');
-  
-  // Group sales by day
-  const last7Days = [...Array(7)].map((_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    return d.toISOString().split('T')[0];
-  }).reverse();
+  const ctx = document.getElementById("salesTrendChart").getContext("2d");
 
-  const dailyTotals = last7Days.map(date => {
+  // Group sales by day
+  const last7Days = [...Array(7)]
+    .map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toISOString().split("T")[0];
+    })
+    .reverse();
+
+  const dailyTotals = last7Days.map((date) => {
     return salesData
-      .filter(s => new Date(s.created_at).toLocaleDateString('en-CA') === date)
+      .filter(
+        (s) => new Date(s.created_at).toLocaleDateString("en-CA") === date,
+      )
       .reduce((sum, s) => sum + Number(s.amount_paid), 0);
   });
 
   if (salesChart) salesChart.destroy();
 
   salesChart = new Chart(ctx, {
-    type: 'line',
+    type: "line",
     data: {
-      labels: last7Days.map(d => d.split('-').slice(1).join('/')), // MM/DD format
-      datasets: [{
-        label: 'Daily Revenue (KES)',
-        data: dailyTotals,
-        borderColor: '#0d6efd',
-        backgroundColor: 'rgba(13, 110, 253, 0.1)',
-        fill: true,
-        tension: 0.4
-      }]
+      labels: last7Days.map((d) => d.split("-").slice(1).join("/")), // MM/DD format
+      datasets: [
+        {
+          label: "Daily Revenue (KES)",
+          data: dailyTotals,
+          borderColor: "#0d6efd",
+          backgroundColor: "rgba(13, 110, 253, 0.1)",
+          fill: true,
+          tension: 0.4,
+        },
+      ],
     },
-    options: { responsive: true, plugins: { legend: { display: false } } }
+    options: { responsive: true, plugins: { legend: { display: false } } },
   });
 }
 
@@ -699,24 +738,28 @@ async function openInventoryManager() {
   renderSalesLog();
   // Suggestions Mapping
   window.categoryPresets = {
-    "sodas": ["Coca-Cola", "Fanta", "Sprite", "Pepsi", "Krest", "Stoney"],
-    "soda": ["Coca-Cola", "Fanta", "Sprite", "Pepsi", "Krest", "Stoney"],
-    "juices": ["Minute Maid", "Del Monte", "Pick N Peel", "Ceres", "Afia"],
-    "juice": ["Minute Maid", "Del Monte", "Pick N Peel", "Ceres", "Afia"],
-    "water": ["Dasani", "Keringet", "Aquafina", "Quench"]
+    sodas: ["Coca-Cola", "Fanta", "Sprite", "Pepsi", "Krest", "Stoney"],
+    soda: ["Coca-Cola", "Fanta", "Sprite", "Pepsi", "Krest", "Stoney"],
+    juices: ["Minute Maid", "Del Monte", "Pick N Peel", "Ceres", "Afia"],
+    juice: ["Minute Maid", "Del Monte", "Pick N Peel", "Ceres", "Afia"],
+    water: ["Dasani", "Keringet", "Aquafina", "Quench"],
   };
 
   // Close summary if open
-  const summaryModal = bootstrap.Modal.getInstance(document.getElementById("summaryModal"));
+  const summaryModal = bootstrap.Modal.getInstance(
+    document.getElementById("summaryModal"),
+  );
   if (summaryModal) summaryModal.hide(); // Close summary if open
-  
+
   const select = document.getElementById("new-p-cat-select");
   if (select) {
     // If categories are empty, try to fetch them again to ensure we aren't stuck
     if (allCategories.length === 0) {
       select.innerHTML = `<option value="" disabled selected>Fetching categories...</option>`;
-      const { data, error } = await _supabase.from("categories").select("id, name");
-      
+      const { data, error } = await _supabase
+        .from("categories")
+        .select("id, name");
+
       if (error) {
         console.error("Manual Category Fetch Error:", error);
         select.innerHTML = `<option value="" disabled selected>Error: ${error.message}</option>`;
@@ -734,9 +777,9 @@ async function openInventoryManager() {
     } else {
       select.innerHTML = `
         <option value="" disabled selected>Choose a category...</option>
-        ${allCategories.map(c => 
-          `<option value="${c.id}">${c.name}</option>`
-        ).join("")}
+        ${allCategories
+          .map((c) => `<option value="${c.id}">${c.name}</option>`)
+          .join("")}
       `;
     }
     updateQuickSuggestions();
@@ -764,34 +807,50 @@ async function renderSalesLog() {
     return;
   }
 
-  list.innerHTML = (sales || []).map(sale => {
-    const product = allProducts.find(p => String(p.id) === String(sale.product_id));
-    const date = new Date(sale.created_at);
-    const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const dateStr = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  list.innerHTML = (sales || [])
+    .map((sale) => {
+      const product = allProducts.find(
+        (p) => String(p.id) === String(sale.product_id),
+      );
+      const date = new Date(sale.created_at);
+      const timeStr = date.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const dateStr = date.toLocaleDateString([], {
+        month: "short",
+        day: "numeric",
+      });
 
-    return `
+      return `
       <tr>
         <td><small>${dateStr}, ${timeStr}</small></td>
-        <td><small class="fw-bold">${product ? product.name : 'Unknown Item'}</small></td>
+        <td><small class="fw-bold">${product ? product.name : "Unknown Item"}</small></td>
         <td class="text-end"><small>${Number(sale.amount_paid).toLocaleString()} KES</small></td>
         <td><small class="badge bg-light text-dark border">${sale.payment_method}</small></td>
       </tr>
     `;
-  }).join("");
+    })
+    .join("");
 }
 
 function updateQuickSuggestions() {
   const select = document.getElementById("new-p-cat-select");
   const container = document.getElementById("quick-suggestions");
-  const selectedText = select.options[select.selectedIndex]?.text?.toLowerCase().trim();
-  
+  const selectedText = select.options[select.selectedIndex]?.text
+    ?.toLowerCase()
+    .trim();
+
   const presets = window.categoryPresets[selectedText] || [];
-  
-  container.innerHTML = presets.map(brand => ` 
+
+  container.innerHTML = presets
+    .map(
+      (brand) => ` 
     <button type="button" class="btn btn-xs btn-outline-secondary" style="font-size: 0.7rem; padding: 2px 8px;" 
       data-brand="${brand}">${brand}</button>
-  `).join("");
+  `,
+    )
+    .join("");
 }
 
 function applySuggestion(brand) {
@@ -801,31 +860,44 @@ function applySuggestion(brand) {
 }
 
 function renderFullInventoryList() {
-  const q = (document.getElementById("viewSearchInput")?.value || "").toLowerCase().trim();
+  const q = (document.getElementById("viewSearchInput")?.value || "")
+    .toLowerCase()
+    .trim();
   const list = document.getElementById("inventory-view-list");
-  
-  const filtered = allProducts.filter(p => p.name.toLowerCase().includes(q));
 
-  list.innerHTML = filtered.map(p => {
-    const stockClass = p.stock <= 0 ? 'text-danger fw-bold' : p.stock < 5 ? 'text-warning fw-bold' : '';
-    return `
+  const filtered = allProducts.filter((p) => p.name.toLowerCase().includes(q));
+
+  list.innerHTML = filtered
+    .map((p) => {
+      const stockClass =
+        p.stock <= 0
+          ? "text-danger fw-bold"
+          : p.stock < 5
+            ? "text-warning fw-bold"
+            : "";
+      return `
       <tr>
         <td><small class="fw-bold">${p.name}</small></td>
-        <td><small class="text-muted">${p.categories?.name || 'N/A'}</small></td>
+        <td><small class="text-muted">${p.categories?.name || "N/A"}</small></td>
         <td class="text-end"><small>${p.price.toLocaleString()}</small></td>
         <td class="text-center ${stockClass}"><small>${p.stock}</small></td>
       </tr>
     `;
-  }).join("");
+    })
+    .join("");
 }
 
 function renderInventoryList() {
-  const q = (document.getElementById("inventorySearchInput")?.value || "").toLowerCase().trim();
+  const q = (document.getElementById("inventorySearchInput")?.value || "")
+    .toLowerCase()
+    .trim();
   const list = document.getElementById("inventory-management-list");
-  
-  const filtered = allProducts.filter(p => p.name.toLowerCase().includes(q));
 
-  list.innerHTML = filtered.map(p => `
+  const filtered = allProducts.filter((p) => p.name.toLowerCase().includes(q));
+
+  list.innerHTML = filtered
+    .map(
+      (p) => `
     <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
       <div style="flex: 1;">
         <h6 class="mb-0 text-truncate" style="max-width: 150px;">${p.name}</h6>
@@ -843,16 +915,21 @@ function renderInventoryList() {
         </div>
       </div>
     </div>
-  `).join("");
+  `,
+    )
+    .join("");
 }
 
 async function quickStock(id, amount) {
-  const product = allProducts.find(p => String(p.id) === String(id));
+  const product = allProducts.find((p) => String(p.id) === String(id));
   if (!product) return;
-  
+
   const newStock = product.stock + amount;
-  const { error } = await _supabase.from("products").update({ stock: newStock }).eq("id", id);
-  
+  const { error } = await _supabase
+    .from("products")
+    .update({ stock: newStock })
+    .eq("id", id);
+
   if (!error) {
     showNotification(`Added ${amount} to ${product.name}`, "success");
     await fetchData();
@@ -870,12 +947,15 @@ async function saveStockUpdate(id, inputId) {
     return;
   }
 
-  const product = allProducts.find(p => String(p.id) === String(id));
+  const product = allProducts.find((p) => String(p.id) === String(id));
   if (!product) return;
 
   const newStock = product.stock + addAmount;
 
-  const { error } = await _supabase.from("products").update({ stock: newStock }).eq("id", id);
+  const { error } = await _supabase
+    .from("products")
+    .update({ stock: newStock })
+    .eq("id", id);
 
   if (error) {
     showNotification("Error updating database", "danger");
@@ -887,12 +967,16 @@ async function saveStockUpdate(id, inputId) {
 }
 
 function renderPriceList() {
-  const q = (document.getElementById("priceSearchInput")?.value || "").toLowerCase().trim();
+  const q = (document.getElementById("priceSearchInput")?.value || "")
+    .toLowerCase()
+    .trim();
   const list = document.getElementById("price-management-list");
-  
-  const filtered = allProducts.filter(p => p.name.toLowerCase().includes(q));
 
-  list.innerHTML = filtered.map(p => `
+  const filtered = allProducts.filter((p) => p.name.toLowerCase().includes(q));
+
+  list.innerHTML = filtered
+    .map(
+      (p) => `
     <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
       <div style="flex: 1;">
         <h6 class="mb-0">${p.name}</h6>
@@ -903,7 +987,9 @@ function renderPriceList() {
         <button class="btn btn-sm btn-primary" onclick="savePriceUpdate('${p.id}', 'price-input-${p.id}')">Update</button>
       </div>
     </div>
-  `).join("");
+  `,
+    )
+    .join("");
 }
 
 async function savePriceUpdate(id, inputId) {
@@ -915,7 +1001,10 @@ async function savePriceUpdate(id, inputId) {
     return;
   }
 
-  const { error } = await _supabase.from("products").update({ price: newPrice }).eq("id", id);
+  const { error } = await _supabase
+    .from("products")
+    .update({ price: newPrice })
+    .eq("id", id);
 
   if (error) {
     showNotification("Error updating price", "danger");
@@ -938,23 +1027,24 @@ async function addNewProduct() {
     return;
   }
 
-  const { error } = await _supabase.from("products").insert([
-    { name, category_id, price, stock }
-  ]).select();
+  const { error } = await _supabase
+    .from("products")
+    .insert([{ name, category_id, price, stock }])
+    .select();
 
   if (error) {
     console.error("Supabase Insert Error:", error);
     showNotification(`Error: ${error.message}`, "danger");
   } else {
     showNotification(`${name} added successfully!`, "success");
-    
+
     // Speed optimization: Only clear the Name and focus back
     document.getElementById("new-p-name").value = "";
     document.getElementById("new-p-name").focus();
-    
-    const manageTabTrigger = document.querySelector('#manage-tab');
+
+    const manageTabTrigger = document.querySelector("#manage-tab");
     bootstrap.Tab.getOrCreateInstance(manageTabTrigger).show();
-    
+
     // Refresh main data and modal list
     await fetchData();
     renderInventoryList();
@@ -962,25 +1052,29 @@ async function addNewProduct() {
 }
 function notifyIfNoInternet() {
   if (!navigator.onLine) {
-    showNotification("You are currently offline. Some features may not work.", "warning");
+    showNotification(
+      "You are currently offline. Some features may not work.",
+      "warning",
+    );
   }
   return;
 }
 
-window.addEventListener('load', notifyIfNoInternet);
-window.addEventListener('offline', () => showNotification("You lost internet connection!", "danger"));
-window.addEventListener('online', () => {
+window.addEventListener("load", notifyIfNoInternet);
+window.addEventListener("offline", () =>
+  showNotification("You lost internet connection!", "danger"),
+);
+window.addEventListener("online", () => {
   showNotification("Back online! Syncing queued sales...", "success");
   syncOfflineQueue();
 });
-
 
 // ================= THEME TOGGLE =================
 function toggleTheme() {
   const html = document.documentElement;
   const currentTheme = html.getAttribute("data-bs-theme") || "light";
   const newTheme = currentTheme === "light" ? "dark" : "light";
-  
+
   html.setAttribute("data-bs-theme", newTheme);
   localStorage.setItem("theme", newTheme);
   updateThemeIcon(newTheme);
@@ -991,9 +1085,43 @@ function updateThemeIcon(theme) {
   if (btn) btn.innerText = theme === "dark" ? "☀️" : "🌙";
 }
 
+// ================= EVENT DELEGATION =================
+function initEventListeners() {
+  // Main product grid: qty +/- and add-to-cart buttons
+  document.getElementById("inventory-grid").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+
+    const action = btn.dataset.action;
+
+    if (action === "qty-minus") {
+      changeQty(btn, -1);
+    } else if (action === "qty-plus") {
+      changeQty(btn, 1);
+    } else if (action === "add-to-cart") {
+      addToCart(btn, btn.dataset.id);
+    }
+  });
+
+  // Inventory management modal: quick-stock buttons
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-action='quick-stock']");
+    if (!btn) return;
+    quickStock(btn.dataset.id, parseInt(btn.dataset.amount));
+  });
+
+  // Quick-suggestions (brand presets) in add-product tab
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-brand]");
+    if (!btn) return;
+    applySuggestion(btn.dataset.brand);
+  });
+}
+
 // ================= INIT =================
 fetchData();
 updateCartUI();
+initEventListeners();
 
 // Initialize Theme
 const savedTheme = localStorage.getItem("theme") || "light";
@@ -1004,15 +1132,19 @@ updateThemeIcon(savedTheme);
 if (navigator.onLine) {
   const pending = getOfflineQueue();
   if (pending.length > 0) {
-    showNotification(`You have ${pending.length} unsynced sale(s). Syncing now...`, "info");
+    showNotification(
+      `You have ${pending.length} unsynced sale(s). Syncing now...`,
+      "info",
+    );
     syncOfflineQueue();
   }
 }
 // Register the Service Worker
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log('Service Worker registered!', reg))
-      .catch(err => console.log('Service Worker registration failed:', err));
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((reg) => console.log("Service Worker registered!", reg))
+      .catch((err) => console.log("Service Worker registration failed:", err));
   });
 }
