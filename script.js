@@ -59,7 +59,8 @@ function renderCategoryPills() {
       <button class="btn btn-sm btn-outline-primary" onclick="filterByCategory('${c.name}', this)">${c.name}</button>
     `).join("");
 }
-filterByCategory = (category, btn) => {
+
+function filterByCategory(category, btn) {
   const buttons = document.querySelectorAll("#category-pills button");
   buttons.forEach(b => b.classList.remove("active"));
   if (btn) btn.classList.add("active");
@@ -70,7 +71,7 @@ filterByCategory = (category, btn) => {
     const filtered = allProducts.filter(p => p.categories?.name === category);
     renderCards(filtered);
   }
-};
+}
 
 // ================= SEARCH =================
 let searchTimeout;
@@ -132,7 +133,7 @@ function renderCards(products) {
               <button onclick="changeQty(this, 1)" class="btn btn-sm btn-outline-secondary">+</button>
             </div>
             <button class="btn btn-primary btn-sm w-100"
-              onclick='addToCart(this, ${JSON.stringify(product)})'>
+              onclick="addToCart(this, '${product.id}')">
               Add
             </button>
           </div>
@@ -154,9 +155,12 @@ function changeQty(btn, val) {
 }
 
 // ================= NOTIFICATIONS =================
-function showNotification(message, type = "danger") {
+function showNotification(message, type = "info") {
+  const existing = document.querySelector(".custom-toast");
+  if (existing) existing.remove();
+
   const toast = document.createElement("div");
-  toast.className = `alert alert-${type} position-fixed top-0 start-50 translate-middle-x mt-3 shadow-lg`;
+  toast.className = `custom-toast alert alert-${type} position-fixed top-0 start-50 translate-middle-x mt-3 shadow-lg`;
   toast.style.zIndex = "1060";
   toast.style.minWidth = "250px";
   toast.innerText = message;
@@ -169,7 +173,10 @@ function showNotification(message, type = "danger") {
 }
 
 // ================= ADD TO CART =================
-function addToCart(btn, product) {
+function addToCart(btn, productId) {
+  const product = allProducts.find(p => String(p.id) === String(productId));
+  if (!product) return;
+
   const qtySpan = btn.closest(".card-body").querySelector(".d-flex span");
   const qty = parseInt(qtySpan.innerText);
 
@@ -752,6 +759,27 @@ async function addNewProduct() {
   }
 }
 
+// ================= THEME TOGGLE =================
+function toggleTheme() {
+  const html = document.documentElement;
+  const currentTheme = html.getAttribute("data-bs-theme") || "light";
+  const newTheme = currentTheme === "light" ? "dark" : "light";
+  
+  html.setAttribute("data-bs-theme", newTheme);
+  localStorage.setItem("theme", newTheme);
+  updateThemeIcon(newTheme);
+}
+
+function updateThemeIcon(theme) {
+  const btn = document.getElementById("themeToggle");
+  if (btn) btn.innerText = theme === "dark" ? "☀️" : "🌙";
+}
+
 // ================= INIT =================
 fetchData();
 updateCartUI();
+
+// Initialize Theme
+const savedTheme = localStorage.getItem("theme") || "light";
+document.documentElement.setAttribute("data-bs-theme", savedTheme);
+updateThemeIcon(savedTheme);

@@ -14,6 +14,9 @@
     />
 
     <style>
+      body {
+        scroll-behavior: smooth;
+      }
       .floating-btn {
         position: fixed;
         right: 15px;
@@ -37,16 +40,31 @@
       #inventoryBtn {
         bottom: 230px;
       }
+
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+
+      /* Improve card distinction in dark mode */
+      [data-bs-theme="dark"] .card {
+        background-color: var(--bs-body-tertiary-bg);
+        border: 1px solid var(--bs-border-color-translucent) !important;
+      }
     </style>
   </head>
 
-  <body class="bg-light">
+  <body class="bg-body">
     <!-- NAVBAR -->
     <nav class="navbar bg-dark navbar-dark sticky-top">
       <div class="container-fluid">
         <span class="navbar-brand">Mini POS</span>
 
         <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-outline-light btn-sm" id="themeToggle" onclick="toggleTheme()">🌙</button>
           <span class="badge bg-secondary" id="total-items-count">
             0 Products
           </span>
@@ -58,7 +76,7 @@
     </nav>
 
     <!-- CATEGORY QUICK-FILTER (Sticky) -->
-    <div class="bg-white border-bottom sticky-top" style="top: 56px; z-index: 1020;">
+    <div class="bg-body border-bottom sticky-top" style="top: 56px; z-index: 1020;">
       <div class="container-fluid py-2 d-flex gap-2 overflow-auto no-scrollbar" id="category-pills" style="white-space: nowrap;">
         <!-- Pills injected here -->
       </div>
@@ -103,7 +121,7 @@
       </div>
 
     <!-- QUICK CHECKOUT BAR (Visible when items are in cart) -->
-    <div id="quick-checkout-bar" class="fixed-bottom bg-white border-top shadow-lg p-2 d-none">
+    <div id="quick-checkout-bar" class="fixed-bottom bg-body border-top shadow-lg p-2 d-none">
       <div class="container d-flex align-items-center justify-content-between">
         <div class="me-2">
           <small class="text-muted d-block" style="font-size: 0.7rem;">TOTAL</small>
@@ -188,7 +206,7 @@
                 <input class="form-control mb-3" id="viewSearchInput" placeholder="Filter inventory..." oninput="renderFullInventoryList()" />
                 <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
                   <table class="table table-sm table-hover border">
-                    <thead class="table-light sticky-top">
+                    <thead class="table-secondary sticky-top">
                       <tr>
                         <th>Product</th>
                         <th>Category</th>
@@ -291,19 +309,19 @@
           <div class="modal-body">
             <div class="row g-3 mb-4">
               <div class="col-md-4">
-                <div class="card bg-light border-0 text-center p-3">
+                <div class="card bg-body-secondary border-0 text-center p-3">
                   <small class="text-muted">Avg. Transaction</small>
                   <h4 id="det-avg-sale">0</h4>
                 </div>
               </div>
               <div class="col-md-4">
-                <div class="card bg-light border-0 text-center p-3">
+                <div class="card bg-body-secondary border-0 text-center p-3">
                   <small class="text-muted">Peak Hour</small>
                   <h4 id="det-peak-hour">00:00</h4>
                 </div>
               </div>
               <div class="col-md-4">
-                <div class="card bg-light border-0 text-center p-3">
+                <div class="card bg-body-secondary border-0 text-center p-3">
                   <small class="text-muted">Items Sold (30d)</small>
                   <h4 id="det-total-qty">0</h4>
                 </div>
