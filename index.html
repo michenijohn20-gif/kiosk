@@ -57,14 +57,19 @@
       </div>
     </nav>
 
-    <!-- FLOATING BUTTONS -->
+    <!-- CATEGORY QUICK-FILTER (Sticky) -->
+    <div class="bg-white border-bottom sticky-top" style="top: 56px; z-index: 1020;">
+      <div class="container-fluid py-2 d-flex gap-2 overflow-auto no-scrollbar" id="category-pills" style="white-space: nowrap;">
+        <!-- Pills injected here -->
+      </div>
+    </div>
+
+    <!-- FLOATING ACTION BUTTONS -->
     <button
       id="summaryBtn"
       onclick="showSummary()"
       class="btn btn-primary floating-btn"
-    >
-      📊
-    </button>
+    >📊</button>
 
     <button
       id="clearBtn"
@@ -78,9 +83,7 @@
       id="inventoryBtn"
       onclick="openInventoryManager()"
       class="btn btn-success floating-btn"
-    >
-      📦
-    </button>
+    >📦</button>
 
     <!-- SEARCH -->
     <div class="container mt-3">

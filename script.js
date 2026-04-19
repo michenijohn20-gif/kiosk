@@ -30,6 +30,7 @@ async function fetchData() {
       categories: allCategories.find(c => String(c.id) === String(p.category_id))
     }));
 
+    renderCategoryPills();
     renderCards(allProducts);
   } catch (err) {
     console.error("Supabase Fetch Error:", err);
@@ -47,6 +48,29 @@ async function fetchData() {
     }
   }
 }
+
+// ================= CATEGORY PILLS =================
+function renderCategoryPills() {
+  const container = document.getElementById("category-pills");
+  if (!container) return;
+
+  container.innerHTML = `<button class="btn btn-sm btn-outline-primary active" onclick="filterByCategory('all', this)">All</button>` + 
+    allCategories.map(c => `
+      <button class="btn btn-sm btn-outline-primary" onclick="filterByCategory('${c.name}', this)">${c.name}</button>
+    `).join("");
+}
+filterByCategory = (category, btn) => {
+  const buttons = document.querySelectorAll("#category-pills button");
+  buttons.forEach(b => b.classList.remove("active"));
+  if (btn) btn.classList.add("active");
+
+  if (category === "all") {
+    renderCards(allProducts);
+  } else {
+    const filtered = allProducts.filter(p => p.categories?.name === category);
+    renderCards(filtered);
+  }
+};
 
 // ================= SEARCH =================
 let searchTimeout;
@@ -85,50 +109,36 @@ function renderCards(products) {
   grid.innerHTML = Object.keys(grouped)
     .map(
       (cat) => `
-    <div class="col-12 mt-3">
+    <div class="col-12 mt-2" id="section-${cat.replace(/\s+/g, '')}">
       <h5 class="text-primary">${cat}</h5>
     </div>
 
-    ${grouped[cat]
-      .map(
-        (product) => `
+    ${grouped[cat].map((product) => `
       <div class="col-6">
-        <div class="card shadow-sm">
-          <div class="card-body text-center">
-
-            <h6>${product.name}</h6>
-            <small class="text-muted">${product.categories?.name || "General"}</small>
-            
-            <div class="mb-2">
+        <div class="card shadow-sm border-0">
+          <div class="card-body text-center p-2">
+            <h6 class="mb-1 text-truncate" title="${product.name}">${product.name}</h6>
+            <div class="mb-1">
               ${product.stock <= 0 
                 ? '<span class="badge bg-danger">Out of stock</span>' 
                 : product.stock < 5 
                 ? '<span class="badge bg-warning text-dark">Few in stock</span>' 
                 : '<span class="badge bg-success">In stock</span>'}
             </div>
-
-            <p class="fw-bold text-primary">${product.price} KES</p>
-
-            <div class="d-flex justify-content-center gap-2 mb-2">
+            <p class="fw-bold text-primary mb-2">${product.price} KES</p>
+            <div class="d-flex justify-content-center align-items-center gap-2 mb-2">
               <button onclick="changeQty(this, -1)" class="btn btn-sm btn-outline-secondary">-</button>
-              <span>1</span>
+              <span class="fw-bold">1</span>
               <button onclick="changeQty(this, 1)" class="btn btn-sm btn-outline-secondary">+</button>
             </div>
-
             <button class="btn btn-primary btn-sm w-100"
               onclick='addToCart(this, ${JSON.stringify(product)})'>
               Add
             </button>
-
           </div>
         </div>
       </div>
-    `,
-      )
-      .join("")}
-  `,
-    )
-    .join("");
+    `).join("")}`).join("");
 
   document.getElementById("total-items-count").innerText =
     `${products.length} Products`;
@@ -609,15 +619,37 @@ function renderInventoryList() {
   list.innerHTML = filtered.map(p => `
     <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
       <div style="flex: 1;">
-        <h6 class="mb-0">${p.name}</h6>
+        <h6 class="mb-0 text-truncate" style="max-width: 150px;">${p.name}</h6>
         <small class="text-muted">Current Stock: <b>${p.stock}</b></small>
       </div>
-      <div class="d-flex gap-2" style="width: 160px;">
-        <input type="number" class="form-control form-control-sm" id="stock-input-${p.id}" value="0" placeholder="Qty to add">
-        <button class="btn btn-sm btn-success" onclick="saveStockUpdate('${p.id}', 'stock-input-${p.id}')">Add</button>
+      <div class="text-end">
+        <div class="btn-group btn-group-sm mb-1">
+          <button class="btn btn-outline-success" onclick="quickStock('${p.id}', 1)">+1</button>
+          <button class="btn btn-outline-success" onclick="quickStock('${p.id}', 6)">+6</button>
+          <button class="btn btn-outline-success" onclick="quickStock('${p.id}', 12)">+12</button>
+        </div>
+        <div class="d-flex gap-1">
+          <input type="number" class="form-control form-control-sm" id="stock-input-${p.id}" value="0" onfocus="this.select()">
+          <button class="btn btn-sm btn-success" onclick="saveStockUpdate('${p.id}', 'stock-input-${p.id}')">Add</button>
+        </div>
       </div>
     </div>
   `).join("");
+}
+
+async function quickStock(id, amount) {
+  const product = allProducts.find(p => String(p.id) === String(id));
+  if (!product) return;
+  
+  const newStock = product.stock + amount;
+  const { error } = await _supabase.from("products").update({ stock: newStock }).eq("id", id);
+  
+  if (!error) {
+    showNotification(`Added ${amount} to ${product.name}`, "success");
+    await fetchData();
+    renderInventoryList();
+    renderFullInventoryList();
+  }
 }
 
 async function saveStockUpdate(id, inputId) {
